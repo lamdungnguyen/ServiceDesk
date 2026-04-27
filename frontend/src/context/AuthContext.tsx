@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 export type UserRole = 'ADMIN' | 'AGENT' | 'CUSTOMER';
 
@@ -7,7 +7,7 @@ export interface User {
   role: UserRole;
   name: string;
   username: string;
-  agentType?: string; // DEV, TESTER, SUPPORT, etc.
+  agentType?: string;
   status?: 'ACTIVE' | 'PENDING' | 'INACTIVE';
 }
 
@@ -19,26 +19,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Initialize admin account if not exists
-const initializeMockDB = () => {
-  const users = localStorage.getItem('mock_users');
-  if (!users) {
-    const defaultAdmin = {
-      id: 999,
-      username: 'admin',
-      password: '123456', // Mock password
-      name: 'System Administrator',
-      role: 'ADMIN' as UserRole
-    };
-    localStorage.setItem('mock_users', JSON.stringify([defaultAdmin]));
-  }
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  useEffect(() => {
-    initializeMockDB();
-  }, []);
-
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('auth_user');
     return savedUser ? JSON.parse(savedUser) : null;
@@ -68,3 +49,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

@@ -13,22 +13,27 @@ public class AuthInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         String userIdStr = request.getHeader("X-User-Id");
         String roleStr = request.getHeader("X-User-Role");
+        String uri = request.getRequestURI();
+        String method = request.getMethod();
 
-        // Allow OPTIONS requests for CORS
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+        // Allow preflight CORS
+        if ("OPTIONS".equalsIgnoreCase(method)) {
             return true;
         }
 
-        // Allow guest to create ticket
-        if ("POST".equalsIgnoreCase(request.getMethod()) && "/api/v1/tickets".equals(request.getRequestURI())) {
+        // Public endpoints — no auth required
+        if (uri.equals("/api/v1/users/login") || uri.equals("/api/v1/users/register")) {
+            return true;
+        }
+
+        // Allow guest to create ticket (no headers)
+        if ("POST".equalsIgnoreCase(method) && "/api/v1/tickets".equals(uri)) {
             if (userIdStr == null || roleStr == null) {
-                // It's a guest request
-                return true;
+                return true; // Guest submission
             }
         }
 
-        // For mock authentication, if headers are missing, we can either block or default.
-        // Let's block if missing to enforce RBAC.
+        // Block if auth headers missing
         if (userIdStr == null || roleStr == null) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Missing authentication headers (X-User-Id, X-User-Role)");
             return false;
@@ -37,7 +42,6 @@ public class AuthInterceptor implements HandlerInterceptor {
         try {
             Long userId = Long.parseLong(userIdStr);
             UserRole role = UserRole.valueOf(roleStr.toUpperCase());
-            
             UserContext.setUserId(userId);
             UserContext.setUserRole(role);
         } catch (IllegalArgumentException e) {
@@ -47,6 +51,7 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         return true;
     }
+
 
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Shield, Lock, User as UserIcon, Loader2, ArrowRight } from 'lucide-react';
-import { useAuth, type UserRole } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { loginUser, registerUser } from '../api/apiClient';
 import logoUrl from '../assets/logo.png';
 
 const StaffLogin = () => {
@@ -19,51 +20,34 @@ const StaffLogin = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
     setIsLoading(true);
 
-    setTimeout(() => {
-      const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]');
-
+    try {
       if (isLoginTab) {
-        // Handle Login
-        const user = mockUsers.find((u: any) => u.username === username && u.password === password && (u.role === 'ADMIN' || u.role === 'AGENT'));
-        if (user) {
-          if (user.status === 'PENDING') {
-            setError('Your account is pending approval by an Administrator.');
-          } else {
-            login({ id: user.id, role: user.role, name: user.name, username: user.username, agentType: user.agentType });
-            navigate(user.role === 'ADMIN' ? '/admin/dashboard' : '/staff/dashboard');
-          }
-        } else {
-          setError('Invalid username or password, or unauthorized role.');
+        const userData = await loginUser(username, password);
+        if (userData.role !== 'ADMIN' && userData.role !== 'AGENT') {
+          setError('This portal is for staff only. Please use the Customer Portal.');
+          return;
         }
+        login({ id: userData.id, role: userData.role, name: userData.name, username: userData.username, agentType: userData.agentType, status: userData.status });
+        navigate(userData.role === 'ADMIN' ? '/admin/dashboard' : '/staff/dashboard');
       } else {
-        // Handle Register (Only AGENT)
-        if (mockUsers.find((u: any) => u.username === username)) {
-          setError('Username already exists.');
-        } else {
-          const newUser = {
-            id: Date.now(), // Random ID for mock
-            username,
-            password,
-            name,
-            email,
-            phone,
-            role: 'AGENT' as UserRole,
-            agentType,
-            status: 'PENDING'
-          };
-          localStorage.setItem('mock_users', JSON.stringify([...mockUsers, newUser]));
-          setSuccess('Registration successful! Please wait for Admin approval.');
-          setIsLoginTab(true);
-        }
+        // Register a new AGENT (always PENDING)
+        await registerUser({ username, password, name, email, phone, role: 'AGENT', agentType });
+        setSuccess('Registration successful! Your account is pending Admin approval. You will be notified once approved.');
+        setIsLoginTab(true);
+        setUsername(''); setPassword('');
       }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.response?.data || err.message;
+      setError(typeof msg === 'string' ? msg : 'Something went wrong. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 600); // Simulate network delay
+    }
   };
 
   return (

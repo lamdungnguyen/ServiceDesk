@@ -8,6 +8,7 @@ const apiClient = axios.create({
   },
 });
 
+// Attach auth headers from logged-in user
 apiClient.interceptors.request.use((config) => {
   const savedUser = localStorage.getItem('auth_user');
   if (savedUser) {
@@ -17,6 +18,8 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// ─── Ticket APIs ────────────────────────────────────────────────────────────
 
 export const getTickets = async (): Promise<Ticket[]> => {
   const response = await apiClient.get('/tickets');
@@ -43,6 +46,8 @@ export const updateTicketStatus = async (id: number, status: string): Promise<Ti
   return response.data;
 };
 
+// ─── Comment APIs ────────────────────────────────────────────────────────────
+
 export interface Comment {
   id: number;
   ticketId: number;
@@ -59,6 +64,52 @@ export const getComments = async (ticketId: number): Promise<Comment[]> => {
 
 export const postComment = async (ticketId: number, content: string): Promise<Comment> => {
   const response = await apiClient.post(`/comments`, { ticketId, content });
+  return response.data;
+};
+
+// ─── User APIs ────────────────────────────────────────────────────────────────
+
+export interface UserPayload {
+  id: number;
+  username: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  role: 'ADMIN' | 'AGENT' | 'CUSTOMER';
+  agentType?: string;
+  status: 'ACTIVE' | 'PENDING' | 'INACTIVE';
+}
+
+export const loginUser = async (username: string, password: string): Promise<UserPayload> => {
+  const response = await apiClient.post('/users/login', { username, password });
+  return response.data;
+};
+
+export const registerUser = async (data: {
+  username: string;
+  password: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  role: string;
+  agentType?: string;
+}): Promise<UserPayload> => {
+  const response = await apiClient.post('/users/register', data);
+  return response.data;
+};
+
+export const getAllUsers = async (): Promise<UserPayload[]> => {
+  const response = await apiClient.get('/users');
+  return response.data;
+};
+
+export const updateUserStatus = async (userId: number, status: string): Promise<UserPayload> => {
+  const response = await apiClient.patch(`/users/${userId}/status`, { status });
+  return response.data;
+};
+
+export const deleteUser = async (userId: number): Promise<UserPayload> => {
+  const response = await apiClient.delete(`/users/${userId}`);
   return response.data;
 };
 
