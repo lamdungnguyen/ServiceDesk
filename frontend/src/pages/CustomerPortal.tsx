@@ -123,16 +123,16 @@ const CustomerPortal = () => {
     <div className="min-h-[calc(100vh-64px)] flex flex-col justify-between bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
       
       {/* Hero Section */}
-      <div className="bg-slate-900 dark:bg-slate-950 pt-20 pb-40 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 z-0 opacity-40 dark:opacity-20">
-          <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[120%] bg-primary-600 rounded-full mix-blend-screen filter blur-[150px] animate-pulse"></div>
-          <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[120%] bg-indigo-600 rounded-full mix-blend-screen filter blur-[150px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+      <div className="bg-slate-50 dark:bg-slate-950 pt-20 pb-40 px-4 relative overflow-hidden transition-colors duration-300">
+        <div className="absolute inset-0 z-0 opacity-20">
+          <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[120%] bg-primary-600 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[150px] animate-pulse"></div>
+          <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[120%] bg-indigo-600 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[150px] animate-pulse" style={{ animationDelay: '2s' }}></div>
         </div>
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h1 className="text-5xl md:text-6xl font-extrabold text-white tracking-tight mb-6 leading-tight drop-shadow-sm">
-            How can we <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-indigo-400">help you</span> today?
+          <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-6 leading-tight drop-shadow-sm transition-colors duration-300">
+            How can we <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-indigo-600 dark:from-primary-400 dark:to-indigo-400 drop-shadow-sm">help you</span> today?
           </h1>
-          <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto font-light leading-relaxed">
+          <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto font-light leading-relaxed transition-colors duration-300">
             Submit a detailed request below. Our expert support team is ready to assist you and ensure your operations run smoothly.
           </p>
         </div>

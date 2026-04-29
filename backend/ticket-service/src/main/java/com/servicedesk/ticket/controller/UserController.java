@@ -35,7 +35,10 @@ public class UserController {
 
     // GET /api/v1/users  (Admin only)
     @GetMapping
-    public ResponseEntity<List<UserResponse>> getAllUsers() {
+    public ResponseEntity<List<UserResponse>> getAllUsers(@RequestParam(required = false) com.servicedesk.ticket.enums.UserRole role) {
+        if (role != null) {
+            return ResponseEntity.ok(userService.getUsersByRole(role));
+        }
         return ResponseEntity.ok(userService.getAllUsers());
     }
 

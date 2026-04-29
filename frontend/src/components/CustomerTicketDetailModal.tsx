@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Loader2, Calendar, Clock, AlertCircle, MessageSquare, Send, Tag, Flag } from 'lucide-react';
 import type { Ticket } from '../types/ticket';
 import { getComments, postComment, type Comment } from '../api/apiClient';
@@ -47,15 +47,38 @@ const CustomerTicketDetailModal = ({ ticket, isOpen, onClose }: CustomerTicketDe
   const [commentText, setCommentText] = useState('');
   const [isSending, setIsSending] = useState(false);
 
+  const commentsEndRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (isOpen && ticket) {
+      let isCancelled = false;
+      const fetchComments = () => {
+        getComments(ticket.id)
+          .then(data => {
+            if (!isCancelled) setComments(data);
+          })
+          .catch(console.error);
+      };
+      
       setLoading(true);
-      getComments(ticket.id)
-        .then(setComments)
-        .catch(console.error)
-        .finally(() => setLoading(false));
+      fetchComments();
+      const interval = window.setInterval(fetchComments, 5000);
+      
+      // Delay turning off loading so we show it at least once briefly
+      setTimeout(() => { if (!isCancelled) setLoading(false); }, 300);
+
+      return () => {
+        isCancelled = true;
+        window.clearInterval(interval);
+      };
     }
   }, [isOpen, ticket]);
+
+  useEffect(() => {
+    if (commentsEndRef.current) {
+      commentsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [comments]);
 
   if (!isOpen) return null;
 
@@ -191,6 +214,7 @@ const CustomerTicketDetailModal = ({ ticket, isOpen, onClose }: CustomerTicketDe
                   );
                 })
               )}
+              <div ref={commentsEndRef} />
             </div>
 
             {/* Reply Box */}

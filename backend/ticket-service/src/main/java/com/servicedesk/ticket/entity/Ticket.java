@@ -61,4 +61,10 @@ public class Ticket {
 
     @Column(name = "assignee_id")
     private Long assigneeId;
+
+    @Column(name = "sla_notified")
+    private Boolean slaNotified = false;
+
+    @Column(name = "overdue_notified")
+    private Boolean overdueNotified = false;
 }

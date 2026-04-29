@@ -6,68 +6,7 @@ import CreateTicketModal from '../components/CreateTicketModal';
 import { useAuth } from '../context/auth';
 import { Plus, Filter, LayoutGrid, List as ListIcon, RefreshCcw, CheckCircle2, Clock, AlertCircle, TrendingUp } from 'lucide-react';
 
-const mockTickets: TicketType[] = [
-  {
-    id: 101,
-    title: "Cannot access VPN from home network",
-    description: "I am getting a connection timeout error when trying to connect to the corporate VPN using Cisco AnyConnect. It was working fine yesterday.",
-    status: "NEW",
-    priority: "HIGH",
-    category: "NETWORK",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    dueDate: null,
-    reporterId: 1,
-    reporterName: "John Doe",
-    reporterEmail: "john.doe@example.com",
-    assigneeId: null
-  },
-  {
-    id: 102,
-    title: "Need software license for Adobe Creative Cloud",
-    description: "Please assign a license for my account so I can start working on the new marketing materials.",
-    status: "IN_PROGRESS",
-    priority: "MEDIUM",
-    category: "SOFTWARE",
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000).toISOString(),
-    dueDate: null,
-    reporterId: 2,
-    reporterName: "Alice Smith",
-    reporterEmail: "alice.smith@example.com",
-    assigneeId: 5
-  },
-  {
-    id: 103,
-    title: "Laptop screen flickering intermittently",
-    description: "My Dell XPS 15 screen keeps flickering when I open multiple heavy applications. Could it be a hardware issue?",
-    status: "ASSIGNED",
-    priority: "MEDIUM",
-    category: "HARDWARE",
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString(),
-    dueDate: null,
-    reporterId: 3,
-    reporterName: "Bob Williams",
-    reporterEmail: "bob.w@example.com",
-    assigneeId: 4
-  },
-  {
-    id: 104,
-    title: "Update security policies on production servers",
-    description: "We need to apply the latest security patches to all production servers before the upcoming audit next week. This is extremely critical.",
-    status: "RESOLVED",
-    priority: "URGENT",
-    category: "SECURITY",
-    createdAt: new Date(Date.now() - 345600000).toISOString(),
-    updatedAt: new Date(Date.now() - 43200000).toISOString(),
-    dueDate: null,
-    reporterId: 4,
-    reporterName: "System Alert",
-    reporterEmail: "alert@system.local",
-    assigneeId: 1
-  }
-];
+// Removed mockTickets
 
 const StatCard = ({ title, value, icon, trend, colorClass }: { title: string, value: string, icon: React.ReactNode, trend: string, colorClass: string }) => (
   <div className="glass-card p-5 relative overflow-hidden group">
@@ -105,9 +44,9 @@ const Dashboard: React.FC = () => {
       setTickets(data);
     } catch (err) {
       console.error("Failed to fetch tickets:", err);
-      setError("Cannot connect to backend. Showing mock data for UI preview.");
-      setTickets(mockTickets);
-      setIsUsingMock(true);
+      setError("Cannot connect to backend. Please check your connection.");
+      setTickets([]);
+      setIsUsingMock(false);
     } finally {
       setTimeout(() => setLoading(false), 600); // Fake delay for smooth skeleton transition
     }

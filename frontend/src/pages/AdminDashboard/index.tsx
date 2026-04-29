@@ -13,18 +13,24 @@ const AdminDashboard = () => {
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchTickets = async () => {
+    try {
+      const data = await getTickets();
+      setTickets(data);
+    } catch (err) {
+      console.error("Failed to fetch tickets", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTicketAssigned = (ticketId: number, assigneeId: number) => {
+    setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, assigneeId, status: t.status === 'NEW' ? 'ASSIGNED' : t.status } : t));
+    fetchTickets(); // Refresh to ensure data sync
+  };
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const fetchTickets = async () => {
-        try {
-          const data = await getTickets();
-          setTickets(data);
-        } catch (err) {
-          console.error("Failed to fetch tickets", err);
-        } finally {
-          setLoading(false);
-        }
-      };
       void fetchTickets();
     }, 0);
 
@@ -84,7 +90,7 @@ const AdminDashboard = () => {
         ) : (
           <div className="max-w-7xl mx-auto h-full">
             {activeTab === 'overview' && <Overview tickets={tickets} />}
-            {activeTab === 'tickets' && <Tickets tickets={tickets} />}
+            {activeTab === 'tickets' && <Tickets tickets={tickets} onTicketAssigned={handleTicketAssigned} />}
             {activeTab === 'users' && <UsersList />}
             {activeTab === 'sla' && <SLA tickets={tickets} />}
           </div>

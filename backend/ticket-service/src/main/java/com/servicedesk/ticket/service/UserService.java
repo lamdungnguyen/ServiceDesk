@@ -11,6 +11,7 @@ public interface UserService {
     UserResponse register(UserRegisterRequest request);
     UserResponse login(UserLoginRequest request);
     List<UserResponse> getAllUsers();
+    List<UserResponse> getUsersByRole(com.servicedesk.ticket.enums.UserRole role);
     UserResponse updateStatus(Long userId, UserStatus status);
     UserResponse deleteUser(Long userId);
 }

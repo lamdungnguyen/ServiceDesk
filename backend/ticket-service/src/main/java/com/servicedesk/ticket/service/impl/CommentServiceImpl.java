@@ -11,6 +11,7 @@ import com.servicedesk.ticket.repository.CommentRepository;
 import com.servicedesk.ticket.security.UserContext;
 import com.servicedesk.ticket.repository.TicketRepository;
 import com.servicedesk.ticket.service.CommentService;
+import com.servicedesk.ticket.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +24,7 @@ public class CommentServiceImpl implements CommentService {
 
     private final CommentRepository commentRepository;
     private final TicketRepository ticketRepository;
+    private final NotificationService notificationService;
 
     @Override
     public CommentResponse addComment(CommentCreateRequest request) {
@@ -38,6 +40,25 @@ public class CommentServiceImpl implements CommentService {
                 .build();
 
         Comment savedComment = commentRepository.save(comment);
+
+        // Notification Logic
+        Long currentUserId = UserContext.getUserId();
+        UserRole role = UserContext.getUserRole();
+        
+        if (role == UserRole.CUSTOMER && ticket.getAssigneeId() != null) {
+            notificationService.createNotification(
+                    ticket.getAssigneeId(),
+                    "New comment from customer on ticket #" + ticket.getId(),
+                    "INFO"
+            );
+        } else if (role == UserRole.AGENT && ticket.getReporterId() != null) {
+            notificationService.createNotification(
+                    ticket.getReporterId(),
+                    "New comment from agent on ticket #" + ticket.getId(),
+                    "INFO"
+            );
+        }
+
         return mapToResponse(savedComment);
     }
 

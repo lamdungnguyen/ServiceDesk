@@ -1,13 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Ticket } from '../../types/ticket';
-import { Search, Filter, MoreVertical, ShieldAlert } from 'lucide-react';
+import { Search, Filter, MoreVertical, ShieldAlert, Loader2 } from 'lucide-react';
+import { getAllUsers, assignTicket, type UserPayload } from '../../api/apiClient';
 
 interface TicketsProps {
   tickets: Ticket[];
+  onTicketAssigned?: (ticketId: number, assigneeId: number) => void;
 }
 
-const Tickets = ({ tickets }: TicketsProps) => {
+const Tickets = ({ tickets, onTicketAssigned }: TicketsProps) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [agents, setAgents] = useState<UserPayload[]>([]);
+  const [assigningId, setAssigningId] = useState<number | null>(null);
+
+  useEffect(() => {
+    getAllUsers('AGENT').then(users => {
+      setAgents(users);
+    }).catch(console.error);
+  }, []);
+
+  const handleAssign = async (ticketId: number, assigneeId: number) => {
+    if (!assigneeId) return;
+    setAssigningId(ticketId);
+    try {
+      await assignTicket(ticketId, assigneeId);
+      if (onTicketAssigned) onTicketAssigned(ticketId, assigneeId);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setAssigningId(null);
+    }
+  };
 
   const filteredTickets = tickets.filter(t => 
     t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -99,16 +122,20 @@ const Tickets = ({ tickets }: TicketsProps) => {
                     {ticket.reporterName || `User ${ticket.reporterId}`}
                   </div>
                 </td>
-                <td className="p-4">
-                  {ticket.assigneeId ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold">
-                        A
-                      </div>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">Agent {ticket.assigneeId}</span>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-slate-400 dark:text-slate-500 italic">Unassigned</span>
+                <td className="p-4 relative">
+                  <select
+                    disabled={assigningId === ticket.id}
+                    value={ticket.assigneeId || ''}
+                    onChange={(e) => handleAssign(ticket.id, Number(e.target.value))}
+                    className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md py-1.5 px-2 outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                  >
+                    <option value="">Unassigned</option>
+                    {agents.map(a => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
+                  {assigningId === ticket.id && (
+                    <Loader2 size={12} className="absolute right-6 top-1/2 -translate-y-1/2 animate-spin text-blue-500" />
                   )}
                 </td>
                 <td className="p-4 text-right pr-6">

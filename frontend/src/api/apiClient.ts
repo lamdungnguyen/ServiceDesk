@@ -63,6 +63,11 @@ export const updateTicketStatus = async (id: number, status: string): Promise<Ti
   return response.data;
 };
 
+export const assignTicket = async (id: number, assigneeId: number): Promise<Ticket> => {
+  const response = await apiClient.put(`/tickets/${id}/assign`, { assigneeId });
+  return response.data;
+};
+
 // ─── Comment APIs ────────────────────────────────────────────────────────────
 
 export interface Comment {
@@ -81,6 +86,27 @@ export const getComments = async (ticketId: number): Promise<Comment[]> => {
 
 export const postComment = async (ticketId: number, content: string): Promise<Comment> => {
   const response = await apiClient.post(`/tickets/${ticketId}/comments`, { content });
+  return response.data;
+};
+
+// ─── Notification APIs ───────────────────────────────────────────────────────
+
+export interface Notification {
+  id: number;
+  userId: number;
+  message: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export const getNotifications = async (): Promise<Notification[]> => {
+  const response = await apiClient.get('/notifications');
+  return response.data;
+};
+
+export const markNotificationAsRead = async (id: number): Promise<Notification> => {
+  const response = await apiClient.put(`/notifications/${id}/read`);
   return response.data;
 };
 
@@ -115,8 +141,9 @@ export const registerUser = async (data: {
   return response.data;
 };
 
-export const getAllUsers = async (): Promise<UserPayload[]> => {
-  const response = await apiClient.get('/users');
+export const getAllUsers = async (role?: string): Promise<UserPayload[]> => {
+  const url = role ? `/users?role=${role}` : '/users';
+  const response = await apiClient.get(url);
   return response.data;
 };
 

@@ -7,94 +7,7 @@ import Sidebar from '../components/AgentWorkspace/Sidebar';
 import TicketList from '../components/AgentWorkspace/TicketList';
 import TicketDetail from '../components/AgentWorkspace/TicketDetail';
 
-// Rich mock data used as fallback when backend is unavailable
-const MOCK_TICKETS: Ticket[] = [
-  {
-    id: 101,
-    title: "Cannot access VPN from home network",
-    description: "I am getting a connection timeout error when trying to connect to the corporate VPN using Cisco AnyConnect. It was working fine yesterday. I've tried restarting my router and reinstalling the client but nothing helps.",
-    status: "NEW",
-    priority: "HIGH",
-    category: "NETWORK",
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000).toISOString(),
-    dueDate: new Date(Date.now() + 7200000).toISOString(), // 2h from now
-    reporterId: 1,
-    reporterName: "John Doe",
-    reporterEmail: "john.doe@example.com",
-    assigneeId: 5,
-  },
-  {
-    id: 102,
-    title: "Need software license for Adobe Creative Cloud",
-    description: "Please assign a license for my account so I can start working on the new Q3 marketing materials. My team lead has approved the purchase.",
-    status: "IN_PROGRESS",
-    priority: "MEDIUM",
-    category: "SOFTWARE",
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000).toISOString(),
-    dueDate: new Date(Date.now() + 86400000).toISOString(), // 1 day from now
-    reporterId: 2,
-    reporterName: "Alice Smith",
-    reporterEmail: "alice.smith@example.com",
-    assigneeId: 5,
-  },
-  {
-    id: 103,
-    title: "Laptop screen flickering intermittently",
-    description: "My Dell XPS 15 screen has been flickering every 10-15 minutes. It happened after installing a Windows update last Tuesday. Serial: DX15-8823.",
-    status: "NEW",
-    priority: "MEDIUM",
-    category: "HARDWARE",
-    createdAt: new Date(Date.now() - 43200000).toISOString(),
-    updatedAt: new Date(Date.now() - 43200000).toISOString(),
-    dueDate: new Date(Date.now() - 3600000).toISOString(), // OVERDUE by 1h
-    reporterId: 3,
-    reporterName: "Bob Williams",
-    reporterEmail: "bob.w@example.com",
-    assigneeId: 5,
-  },
-  {
-    id: 104,
-    title: "Update security policies on production servers",
-    description: "Apply latest security patches to all production servers before the upcoming compliance audit. Priority: Critical. Downtime window: Sunday 02:00–06:00.",
-    status: "RESOLVED",
-    priority: "URGENT",
-    category: "HARDWARE",
-    createdAt: new Date(Date.now() - 345600000).toISOString(),
-    updatedAt: new Date(Date.now() - 43200000).toISOString(),
-    dueDate: new Date(Date.now() - 86400000).toISOString(),
-    reporterId: 4,
-    reporterName: "System Alert",
-    reporterEmail: "alert@system.local",
-    assigneeId: 5,
-  },
-  {
-    id: 105,
-    title: "Email signature template not rendering in Outlook",
-    description: "The new company email signature HTML template shows broken images in Outlook 2019 for about 30% of users. Works fine in Gmail and Apple Mail.",
-    status: "ASSIGNED",
-    priority: "LOW",
-    category: "SOFTWARE",
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    updatedAt: new Date(Date.now() - 7200000).toISOString(),
-    dueDate: new Date(Date.now() + 172800000).toISOString(),
-    reporterId: 5,
-    reporterName: "Carol Johnson",
-    reporterEmail: "c.johnson@example.com",
-    assigneeId: 5,
-  },
-];
-
-const MOCK_COMMENTS: Record<number, Comment[]> = {
-  101: [
-    { id: 1, ticketId: 101, content: "I've checked the VPN logs. The issue seems to be with the user's ISP blocking port 443. Can you try switching to a different network?", authorId: 5, authorName: "Support Agent", createdAt: new Date(Date.now() - 1800000).toISOString() },
-    { id: 2, ticketId: 101, content: "Tried my mobile hotspot and still getting the same error. Please advise.", authorId: 1, authorName: "John Doe", createdAt: new Date(Date.now() - 900000).toISOString() },
-  ],
-  102: [
-    { id: 3, ticketId: 102, content: "License request submitted to procurement. ETA 2 business days.", authorId: 5, authorName: "Support Agent", createdAt: new Date(Date.now() - 3600000).toISOString() },
-  ],
-};
+// Removed mock data
 
 export type TabId = 'assigned' | 'in_progress' | 'resolved' | 'overdue' | 'activity';
 
@@ -122,10 +35,10 @@ const AgentWorkspace = () => {
       // Filter to only show tickets assigned to current user
       const myId = user?.id;
       const mine = myId != null ? data.filter(t => t.assigneeId === myId) : data;
-      setAllTickets(mine.length > 0 ? mine : MOCK_TICKETS);
+      setAllTickets(mine);
     } catch {
-      console.warn('Backend unavailable – using mock tickets');
-      setAllTickets(MOCK_TICKETS);
+      console.warn('Backend unavailable');
+      setAllTickets([]);
     } finally {
       setLoading(false);
     }
@@ -138,28 +51,29 @@ const AgentWorkspace = () => {
     return () => window.clearTimeout(timer);
   }, [fetchTickets]);
 
-  // Fetch comments when ticket is selected
+  // Fetch comments when ticket is selected and poll every 5s
   useEffect(() => {
     if (!selectedTicketId) return;
 
     let isCancelled = false;
-    const timer = window.setTimeout(() => {
-      setCommentsLoading(true);
+    const fetchComments = () => {
       getComments(selectedTicketId)
         .then((data) => {
           if (!isCancelled) setComments(data);
         })
         .catch(() => {
-          if (!isCancelled) setComments(MOCK_COMMENTS[selectedTicketId] ?? []);
-        })
-        .finally(() => {
-          if (!isCancelled) setCommentsLoading(false);
+          if (!isCancelled) setComments([]);
         });
-    }, 0);
+    };
+
+    setCommentsLoading(true);
+    fetchComments();
+    const interval = window.setInterval(fetchComments, 5000);
 
     return () => {
       isCancelled = true;
-      window.clearTimeout(timer);
+      window.clearInterval(interval);
+      setCommentsLoading(false);
     };
   }, [selectedTicketId]);
 
@@ -185,6 +99,10 @@ const AgentWorkspace = () => {
       await updateTicketStatus(id, status);
     } catch { /* optimistic update still happens */ }
     setAllTickets(prev => prev.map(t => t.id === id ? { ...t, status } : t));
+  };
+
+  const handleTicketAssigned = (id: number, assigneeId: number) => {
+    setAllTickets(prev => prev.map(t => t.id === id ? { ...t, assigneeId } : t));
   };
 
   const handlePostComment = async (ticketId: number, content: string) => {
@@ -214,7 +132,7 @@ const AgentWorkspace = () => {
   const selectedTicket = allTickets.find(t => t.id === selectedTicketId) ?? null;
 
   return (
-    <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-slate-100">
+    <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-slate-100 dark:bg-slate-900 transition-colors duration-300">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={(tab) => { setActiveTab(tab as TabId); setSelectedTicketId(null); }}
@@ -225,7 +143,7 @@ const AgentWorkspace = () => {
 
       <div className="flex-1 flex overflow-hidden min-w-0">
         {/* Ticket List */}
-        <div className="w-[380px] xl:w-[420px] flex-shrink-0 border-r border-slate-200 bg-white shadow-sm z-10 flex flex-col">
+        <div className="w-[380px] xl:w-[420px] flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm z-10 flex flex-col transition-colors duration-300">
           <TicketList
             tickets={filteredTickets}
             selectedId={selectedTicketId}
@@ -240,12 +158,13 @@ const AgentWorkspace = () => {
         </div>
 
         {/* Ticket Detail */}
-        <div className="flex-1 hidden md:flex flex-col overflow-hidden bg-slate-50">
+        <div className="flex-1 hidden md:flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
           <TicketDetail
             ticket={selectedTicket}
             comments={comments}
             commentsLoading={commentsLoading}
             onUpdateStatus={handleUpdateStatus}
+            onTicketAssigned={handleTicketAssigned}
             onPostComment={handlePostComment}
             agentName={user?.name ?? 'Agent'}
           />

@@ -9,6 +9,7 @@ import com.servicedesk.ticket.enums.Priority;
 import com.servicedesk.ticket.enums.TicketStatus;
 import com.servicedesk.ticket.enums.UserRole;
 import com.servicedesk.ticket.security.UserContext;
+import com.servicedesk.ticket.service.NotificationService;
 import com.servicedesk.ticket.service.TicketService;
 import com.servicedesk.ticket.exception.UnauthorizedAccessException;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,8 @@ import java.util.stream.Collectors;
 public class TicketServiceImpl implements TicketService {
 
     private final TicketRepository ticketRepository;
+    private final NotificationService notificationService;
+    private final com.servicedesk.ticket.repository.UserRepository userRepository;
 
     @Override
     @Transactional
@@ -50,6 +53,9 @@ public class TicketServiceImpl implements TicketService {
         // TODO: Gọi AI Service để lấy category, priority, suggested_agent
         
         Ticket savedTicket = ticketRepository.save(ticket);
+        
+        notificationService.notifyAdmins("New ticket created: #" + savedTicket.getId() + " - " + savedTicket.getTitle(), "INFO");
+        
         return mapToResponse(savedTicket);
     }
 
@@ -109,6 +115,11 @@ public class TicketServiceImpl implements TicketService {
         
         ticket.setStatus(status);
         Ticket updatedTicket = ticketRepository.save(ticket);
+        
+        if (status == TicketStatus.RESOLVED) {
+            notificationService.createNotification(ticket.getReporterId(), "Your ticket #" + ticket.getId() + " has been resolved.", "INFO");
+        }
+        
         return mapToResponse(updatedTicket);
     }
 
@@ -117,6 +128,13 @@ public class TicketServiceImpl implements TicketService {
     public TicketResponse assignTicket(Long id, Long assigneeId) {
         if (UserContext.getUserRole() != UserRole.ADMIN) {
             throw new UnauthorizedAccessException("Only ADMIN can assign tickets");
+        }
+        
+        com.servicedesk.ticket.entity.User assignee = userRepository.findById(assigneeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Assignee not found with id: " + assigneeId));
+                
+        if (assignee.getRole() != UserRole.AGENT && assignee.getRole() != UserRole.ADMIN) {
+            throw new IllegalArgumentException("Assignee must be an AGENT or ADMIN");
         }
         
         Ticket ticket = ticketRepository.findById(id)
@@ -130,6 +148,9 @@ public class TicketServiceImpl implements TicketService {
         }
         
         Ticket updatedTicket = ticketRepository.save(ticket);
+        
+        notificationService.createNotification(assigneeId, "You have been assigned to ticket #" + ticket.getId(), "INFO");
+        
         return mapToResponse(updatedTicket);
     }
 
