@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Ticket as TicketType } from '../types/ticket';
 import { getTickets } from '../api/apiClient';
 import TicketCard from '../components/TicketCard';
-import { useAuth } from '../context/AuthContext';
+import CustomerTicketDetailModal from '../components/CustomerTicketDetailModal';
+import { useAuth } from '../context/auth';
 import { RefreshCcw, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -11,8 +12,9 @@ const MyTickets = () => {
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
 
-  const fetchTickets = async () => {
+  const fetchTickets = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -24,13 +26,16 @@ const MyTickets = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (user) {
-      fetchTickets();
+      const timer = window.setTimeout(() => {
+        void fetchTickets();
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
-  }, [user]);
+  }, [fetchTickets, user]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -81,9 +86,17 @@ const MyTickets = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {tickets.map((ticket) => (
-            <TicketCard key={ticket.id} ticket={ticket} />
+            <TicketCard key={ticket.id} ticket={ticket} onClick={() => setSelectedTicket(ticket)} />
           ))}
         </div>
+      )}
+
+      {selectedTicket && (
+        <CustomerTicketDetailModal 
+          ticket={selectedTicket} 
+          isOpen={!!selectedTicket} 
+          onClose={() => setSelectedTicket(null)} 
+        />
       )}
     </div>
   );

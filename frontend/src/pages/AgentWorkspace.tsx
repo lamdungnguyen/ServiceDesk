@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth';
 import { getTickets, updateTicketStatus, getComments, postComment } from '../api/apiClient';
 import type { Ticket } from '../types/ticket';
 import type { Comment } from '../api/apiClient';
@@ -131,16 +131,36 @@ const AgentWorkspace = () => {
     }
   }, [user]);
 
-  useEffect(() => { fetchTickets(); }, [fetchTickets]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchTickets();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchTickets]);
 
   // Fetch comments when ticket is selected
   useEffect(() => {
     if (!selectedTicketId) return;
-    setCommentsLoading(true);
-    getComments(selectedTicketId)
-      .then(setComments)
-      .catch(() => setComments(MOCK_COMMENTS[selectedTicketId] ?? []))
-      .finally(() => setCommentsLoading(false));
+
+    let isCancelled = false;
+    const timer = window.setTimeout(() => {
+      setCommentsLoading(true);
+      getComments(selectedTicketId)
+        .then((data) => {
+          if (!isCancelled) setComments(data);
+        })
+        .catch(() => {
+          if (!isCancelled) setComments(MOCK_COMMENTS[selectedTicketId] ?? []);
+        })
+        .finally(() => {
+          if (!isCancelled) setCommentsLoading(false);
+        });
+    }, 0);
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [selectedTicketId]);
 
   // Tab filtering

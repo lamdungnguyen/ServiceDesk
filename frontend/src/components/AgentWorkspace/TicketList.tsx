@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Filter, ArrowUpDown, Clock, RefreshCw, Inbox } from 'lucide-react';
+import { Filter, Clock, RefreshCw, Inbox } from 'lucide-react';
 import { type Ticket } from '../../types/ticket';
 
 interface TicketListProps {
@@ -31,13 +31,6 @@ const getSLALabel = (dueDate: string | null, status: string) => {
   if (diff < 3600000) return { label: `${m}m left`, color: 'text-orange-600 bg-orange-50 border-orange-100' };
   if (diff < 7200000) return { label: `${h}h ${m}m left`, color: 'text-amber-600 bg-amber-50 border-amber-100' };
   return { label: `${h}h left`, color: 'text-slate-500 bg-slate-100 border-slate-200' };
-};
-
-const PRIORITY_DOT: Record<string, string> = {
-  URGENT: 'bg-red-500',
-  HIGH: 'bg-orange-500',
-  MEDIUM: 'bg-yellow-500',
-  LOW: 'bg-green-500',
 };
 
 const PRIORITY_BADGE: Record<string, string> = {

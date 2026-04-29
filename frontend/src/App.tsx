@@ -7,7 +7,8 @@ import Login from './pages/Login';
 import StaffLogin from './pages/StaffLogin';
 import CustomerPortal from './pages/CustomerPortal';
 import MyTickets from './pages/MyTickets';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/auth';
 import RoleRoute from './components/RoleRoute';
 
 const AppRoutes = () => {
@@ -40,15 +41,13 @@ const AppRoutes = () => {
 };
 
 function App() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode] = useState(() =>
+    window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
+  );
 
-  // Optional: Add simple dark mode toggle logic
   useEffect(() => {
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
-    }
-  }, []);
+    document.documentElement.classList.toggle('dark', isDarkMode);
+  }, [isDarkMode]);
 
   return (
     <AuthProvider>

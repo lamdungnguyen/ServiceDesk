@@ -14,17 +14,21 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchTickets = async () => {
-      try {
-        const data = await getTickets();
-        setTickets(data);
-      } catch (err) {
-        console.error("Failed to fetch tickets", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTickets();
+    const timer = window.setTimeout(() => {
+      const fetchTickets = async () => {
+        try {
+          const data = await getTickets();
+          setTickets(data);
+        } catch (err) {
+          console.error("Failed to fetch tickets", err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      void fetchTickets();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   const navItems = [

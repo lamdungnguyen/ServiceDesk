@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Ticket as TicketType } from '../types/ticket';
 import { getTickets } from '../api/apiClient';
 import TicketCard from '../components/TicketCard';
 import CreateTicketModal from '../components/CreateTicketModal';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth';
 import { Plus, Filter, LayoutGrid, List as ListIcon, RefreshCcw, CheckCircle2, Clock, AlertCircle, TrendingUp } from 'lucide-react';
 
 const mockTickets: TicketType[] = [
@@ -18,6 +18,8 @@ const mockTickets: TicketType[] = [
     updatedAt: new Date().toISOString(),
     dueDate: null,
     reporterId: 1,
+    reporterName: "John Doe",
+    reporterEmail: "john.doe@example.com",
     assigneeId: null
   },
   {
@@ -31,6 +33,8 @@ const mockTickets: TicketType[] = [
     updatedAt: new Date(Date.now() - 3600000).toISOString(),
     dueDate: null,
     reporterId: 2,
+    reporterName: "Alice Smith",
+    reporterEmail: "alice.smith@example.com",
     assigneeId: 5
   },
   {
@@ -44,6 +48,8 @@ const mockTickets: TicketType[] = [
     updatedAt: new Date(Date.now() - 86400000).toISOString(),
     dueDate: null,
     reporterId: 3,
+    reporterName: "Bob Williams",
+    reporterEmail: "bob.w@example.com",
     assigneeId: 4
   },
   {
@@ -57,6 +63,8 @@ const mockTickets: TicketType[] = [
     updatedAt: new Date(Date.now() - 43200000).toISOString(),
     dueDate: null,
     reporterId: 4,
+    reporterName: "System Alert",
+    reporterEmail: "alert@system.local",
     assigneeId: 1
   }
 ];
@@ -88,7 +96,7 @@ const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  const fetchTickets = async () => {
+  const fetchTickets = useCallback(async () => {
     setLoading(true);
     setError(null);
     setIsUsingMock(false);
@@ -103,11 +111,14 @@ const Dashboard: React.FC = () => {
     } finally {
       setTimeout(() => setLoading(false), 600); // Fake delay for smooth skeleton transition
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchTickets();
-  }, []);
+    const timer = window.setTimeout(() => {
+      void fetchTickets();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchTickets]);
 
   const stats = [
     { title: "Total Tickets", value: tickets.length.toString(), icon: <LayoutGrid size={20} className="text-primary-500" />, trend: "+12%", colorClass: "bg-primary-500" },

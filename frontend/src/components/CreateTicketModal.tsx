@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Loader2, AlertCircle } from 'lucide-react';
-import { createTicket } from '../api/apiClient';
+import { createTicket, getErrorMessage } from '../api/apiClient';
 
 interface CreateTicketModalProps {
   isOpen: boolean;
@@ -32,16 +32,15 @@ const CreateTicketModal = ({ isOpen, onClose, onTicketCreated }: CreateTicketMod
         title,
         description,
         priority,
-        reporterId: 1 // Hardcoded reporter ID for now
       });
       onTicketCreated();
       setTitle('');
       setDescription('');
       setPriority('MEDIUM');
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to create ticket:", err);
-      setError(err.response?.data?.message || "An error occurred while creating the ticket.");
+      setError(getErrorMessage(err, "An error occurred while creating the ticket."));
     } finally {
       setIsSubmitting(false);
     }

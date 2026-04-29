@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { User as UserIcon, Lock, Loader2, Mail, ArrowRight, CheckCircle2, HeadphonesIcon, Zap } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth';
 import { useNavigate, Link } from 'react-router-dom';
-import { loginUser, registerUser } from '../api/apiClient';
+import { getErrorMessage, loginUser, registerUser } from '../api/apiClient';
 import logoUrl from '../assets/logo.png';
 
 const FEATURES = [
@@ -42,9 +42,8 @@ const Login = () => {
         login({ id: userData.id, role: userData.role, name: userData.name, username: userData.username, status: userData.status });
         navigate('/my-tickets');
       }
-    } catch (err: any) {
-      const msg = err.response?.data?.message || err.response?.data || err.message;
-      setError(typeof msg === 'string' ? msg : 'Something went wrong. Please try again.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setIsLoading(false);
     }

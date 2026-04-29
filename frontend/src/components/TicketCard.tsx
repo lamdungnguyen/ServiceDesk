@@ -4,6 +4,7 @@ import { Clock, AlertCircle, CheckCircle2, MessageSquare, MoreHorizontal } from 
 
 interface TicketCardProps {
   ticket: TicketType;
+  onClick?: () => void;
 }
 
 const statusConfig: Record<string, { color: string, icon: React.ReactNode }> = {
@@ -21,12 +22,12 @@ const priorityIcons: Record<string, { icon: React.ReactNode, class: string }> = 
   URGENT: { icon: <AlertCircle size={14} />, class: "text-red-500 bg-red-50 dark:bg-red-500/10" },
 };
 
-const TicketCard: React.FC<TicketCardProps> = ({ ticket }) => {
+const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick }) => {
   const status = statusConfig[ticket.status] || statusConfig.NEW;
   const priority = priorityIcons[ticket.priority] || priorityIcons.LOW;
 
   return (
-    <div className="glass-card p-5 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col h-full border border-slate-200/60 dark:border-slate-700/50">
+    <div onClick={onClick} className="glass-card p-5 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col h-full border border-slate-200/60 dark:border-slate-700/50">
       <div className="flex justify-between items-start mb-4">
         <div className="flex flex-col gap-2">
           <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">

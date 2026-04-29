@@ -1,29 +1,20 @@
-import React, { createContext, useContext, useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { AuthContext, type User } from './auth';
 
-export type UserRole = 'ADMIN' | 'AGENT' | 'CUSTOMER';
+const getSavedUser = (): User | null => {
+  const savedUser = localStorage.getItem('auth_user');
+  if (!savedUser) return null;
 
-export interface User {
-  id: number;
-  role: UserRole;
-  name: string;
-  username: string;
-  agentType?: string;
-  status?: 'ACTIVE' | 'PENDING' | 'INACTIVE';
-}
+  try {
+    return JSON.parse(savedUser) as User;
+  } catch {
+    localStorage.removeItem('auth_user');
+    return null;
+  }
+};
 
-interface AuthContextType {
-  user: User | null;
-  login: (user: User) => void;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('auth_user');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(getSavedUser);
 
   const login = (newUser: User) => {
     localStorage.setItem('auth_user', JSON.stringify(newUser));
@@ -41,12 +32,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-

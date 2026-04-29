@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { UserPlus, Search, Shield, User as UserIcon, HeadphonesIcon, CheckCircle2, XCircle, Clock, Trash2 } from 'lucide-react';
-import { getAllUsers, updateUserStatus, deleteUser, type UserPayload } from '../../api/apiClient';
+import { deleteUser, getAllUsers, getErrorMessage, updateUserStatus, type UserPayload } from '../../api/apiClient';
 
 const Users = () => {
   const [users, setUsers] = useState<UserPayload[]>([]);
@@ -9,21 +9,26 @@ const Users = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await getAllUsers();
       setUsers(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load users:', err);
-      setError('Cannot connect to backend. Check that the server is running.');
+      setError(getErrorMessage(err, 'Cannot connect to backend. Check that the server is running.'));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadUsers();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadUsers]);
 
   const handleApprove = async (userId: number) => {
     try {

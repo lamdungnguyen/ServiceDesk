@@ -1,7 +1,7 @@
 
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Bell, User, LogOut } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { Search, Bell, LogOut } from 'lucide-react';
+import { useAuth } from '../context/auth';
 import logoUrl from '../assets/logo.png';
 
 const Navbar: React.FC = () => {

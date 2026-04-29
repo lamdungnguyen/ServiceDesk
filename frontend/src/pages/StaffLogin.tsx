@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Shield, Lock, User as UserIcon, Loader2, ArrowRight } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth';
 import { useNavigate } from 'react-router-dom';
-import { loginUser, registerUser } from '../api/apiClient';
+import { getErrorMessage, loginUser, registerUser } from '../api/apiClient';
 import logoUrl from '../assets/logo.png';
 
 const StaffLogin = () => {
@@ -42,9 +42,8 @@ const StaffLogin = () => {
         setIsLoginTab(true);
         setUsername(''); setPassword('');
       }
-    } catch (err: any) {
-      const msg = err.response?.data?.message || err.response?.data || err.message;
-      setError(typeof msg === 'string' ? msg : 'Something went wrong. Please try again.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setIsLoading(false);
     }

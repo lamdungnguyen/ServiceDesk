@@ -19,6 +19,23 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+const getResponseMessage = (data: unknown): string | null => {
+  if (typeof data === 'string') return data;
+  if (data && typeof data === 'object' && 'message' in data) {
+    const message = (data as { message?: unknown }).message;
+    if (typeof message === 'string') return message;
+  }
+  return null;
+};
+
+export const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (axios.isAxiosError(error)) {
+    return getResponseMessage(error.response?.data) ?? error.message ?? fallback;
+  }
+  if (error instanceof Error) return error.message;
+  return fallback;
+};
+
 // ─── Ticket APIs ────────────────────────────────────────────────────────────
 
 export const getTickets = async (): Promise<Ticket[]> => {
@@ -63,7 +80,7 @@ export const getComments = async (ticketId: number): Promise<Comment[]> => {
 };
 
 export const postComment = async (ticketId: number, content: string): Promise<Comment> => {
-  const response = await apiClient.post(`/comments`, { ticketId, content });
+  const response = await apiClient.post(`/tickets/${ticketId}/comments`, { content });
   return response.data;
 };
 
