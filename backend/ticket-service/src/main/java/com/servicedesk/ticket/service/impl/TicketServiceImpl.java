@@ -11,6 +11,8 @@ import com.servicedesk.ticket.enums.UserRole;
 import com.servicedesk.ticket.security.UserContext;
 import com.servicedesk.ticket.service.NotificationService;
 import com.servicedesk.ticket.service.TicketService;
+import com.servicedesk.ticket.service.AIService;
+import com.servicedesk.ticket.dto.AIResponse;
 import com.servicedesk.ticket.exception.UnauthorizedAccessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class TicketServiceImpl implements TicketService {
     private final TicketRepository ticketRepository;
     private final NotificationService notificationService;
     private final com.servicedesk.ticket.repository.UserRepository userRepository;
+    private final AIService aiService;
 
     @Override
     @Transactional
@@ -45,12 +48,34 @@ public class TicketServiceImpl implements TicketService {
                 .reporterName(userId == null ? request.getReporterName() : null)
                 .reporterEmail(userId == null ? request.getReporterEmail() : null)
                 .status(TicketStatus.NEW)
-                .priority(request.getPriority())
-                .category("GENERAL") // Mặc định, sau này AI sẽ quyết định
-                .dueDate(calculateDueDate(request.getPriority()))
                 .build();
 
-        // TODO: Gọi AI Service để lấy category, priority, suggested_agent
+        // Integrate with AI Microservice
+        AIResponse aiResponse = aiService.analyzeTicket(request.getTitle(), request.getDescription());
+        
+        // 1. Safe category mapping
+        String aiCategory = aiResponse.getCategory();
+        if (aiCategory == null || aiCategory.trim().isEmpty()) {
+            aiCategory = "GENERAL";
+        }
+        ticket.setCategory(aiCategory.toUpperCase());
+        
+        // 2. Safe priority enum mapping
+        Priority finalPriority;
+        try {
+            finalPriority = Priority.valueOf(aiResponse.getPriority().toUpperCase());
+        } catch (Exception e) {
+            finalPriority = Priority.LOW;
+        }
+        
+        // 3. Keyword override (Force HIGH priority)
+        String combinedText = (request.getTitle() + " " + request.getDescription()).toLowerCase();
+        if (combinedText.contains("server down") || combinedText.contains("urgent")) {
+            finalPriority = Priority.HIGH;
+        }
+        
+        ticket.setPriority(finalPriority);
+        ticket.setDueDate(calculateDueDate(finalPriority));
         
         Ticket savedTicket = ticketRepository.save(ticket);
         

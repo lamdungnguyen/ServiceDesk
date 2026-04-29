@@ -25,3 +25,9 @@ logs/
 
 # Spring Boot
 application-local.properties
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+ai-service/__pycache__/
