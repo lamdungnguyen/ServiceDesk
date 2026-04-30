@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Filter, Clock, RefreshCw, Inbox } from 'lucide-react';
+import { Filter, Clock, RefreshCw, Inbox, UserPlus, Play, CheckCircle2, MoreHorizontal } from 'lucide-react';
 import { type Ticket } from '../../types/ticket';
 
 interface TicketListProps {
@@ -12,6 +12,9 @@ interface TicketListProps {
   sortBy: string;
   setSortBy: (s: string) => void;
   onRefresh: () => void;
+  onAssignToMe?: (id: number) => void;
+  onQuickStatusChange?: (id: number, status: string) => void;
+  currentUserId?: number;
 }
 
 const isOverdue = (ticket: Ticket) =>
@@ -50,7 +53,8 @@ const STATUS_COLOR: Record<string, string> = {
 
 const TicketList = ({
   tickets, selectedId, onSelect, loading,
-  filterPriority, setFilterPriority, sortBy, setSortBy, onRefresh
+  filterPriority, setFilterPriority, sortBy, setSortBy, onRefresh,
+  onAssignToMe, onQuickStatusChange, currentUserId
 }: TicketListProps) => {
   const [showFilters, setShowFilters] = useState(false);
 
@@ -131,52 +135,101 @@ const TicketList = ({
             const overdue = isOverdue(ticket);
             const sla = getSLALabel(ticket.dueDate, ticket.status);
             const isSelected = selectedId === ticket.id;
+            const canAssign = ticket.assigneeId !== currentUserId;
+            const isOpen = ticket.status !== 'RESOLVED' && ticket.status !== 'CLOSED';
 
             return (
-              <button
+              <div
                 key={ticket.id}
-                onClick={() => onSelect(ticket.id)}
-                className={`w-full text-left p-4 relative transition-colors group
-                  ${isSelected ? 'bg-blue-50 border-l-2 border-l-blue-600' : 'border-l-2 border-l-transparent hover:bg-slate-50'}
-                  ${overdue && !isSelected ? 'border-l-red-500 bg-red-50/20' : ''}
-                `}
+                className={`relative group cursor-pointer ${
+                  isSelected ? 'bg-blue-50 border-l-2 border-l-blue-600' : 'border-l-2 border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-900'
+                } ${overdue && !isSelected ? 'border-l-red-500 bg-red-50/20 dark:bg-red-950/10' : ''}`}
               >
-                {/* Top row: ID + priority */}
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${STATUS_COLOR[ticket.status] ?? 'bg-slate-500'}`}></div>
-                    <span className="text-[11px] font-bold text-slate-400 uppercase">#{ticket.id}</span>
-                  </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${PRIORITY_BADGE[ticket.priority] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                    {ticket.priority}
-                  </span>
-                </div>
-
-                {/* Title */}
-                <h4 className={`text-sm font-semibold mb-1.5 line-clamp-2 leading-snug pr-1 ${
-                  isSelected ? 'text-blue-800' : overdue ? 'text-red-800' : 'text-slate-800'
-                }`}>
-                  {ticket.title}
-                </h4>
-
-                {/* Reporter */}
-                <p className="text-xs text-slate-500 mb-2 truncate">
-                  {ticket.reporterName ?? `User ${ticket.reporterId}`}
-                </p>
-
-                {/* Bottom row: time + SLA */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                    <Clock size={11} />
-                    {formatRelativeTime(ticket.createdAt)}
-                  </span>
-                  {sla && (
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${sla.color}`}>
-                      {sla.label}
+                <button
+                  onClick={() => onSelect(ticket.id)}
+                  className="w-full text-left p-4"
+                >
+                  {/* Top row: ID + priority */}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${STATUS_COLOR[ticket.status] ?? 'bg-slate-500'}`}></div>
+                      <span className="text-[11px] font-bold text-slate-400 uppercase">#{ticket.id}</span>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${PRIORITY_BADGE[ticket.priority] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                      {ticket.priority}
                     </span>
-                  )}
-                </div>
-              </button>
+                  </div>
+
+                  {/* Title */}
+                  <h4 className={`text-sm font-semibold mb-1.5 line-clamp-2 leading-snug pr-1 ${
+                    isSelected ? 'text-blue-800 dark:text-blue-200' : overdue ? 'text-red-800 dark:text-red-200' : 'text-slate-800 dark:text-slate-200'
+                  }`}>
+                    {ticket.title}
+                  </h4>
+
+                  {/* Reporter */}
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 truncate">
+                    {ticket.reporterName ?? `User ${ticket.reporterId}`}
+                  </p>
+
+                  {/* Bottom row: time + SLA */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                      <Clock size={11} />
+                      {formatRelativeTime(ticket.createdAt)}
+                    </span>
+                    {sla && (
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${sla.color}`}>
+                        {sla.label}
+                      </span>
+                    )}
+                  </div>
+                </button>
+
+                {/* Hover quick actions */}
+                {isOpen && (
+                  <div className="absolute bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                    {canAssign && onAssignToMe && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onAssignToMe(ticket.id); }}
+                        className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow-sm transition-colors"
+                        title="Assign to me"
+                      >
+                        <UserPlus size={13} />
+                      </button>
+                    )}
+                    {ticket.status === 'NEW' && onQuickStatusChange && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onQuickStatusChange(ticket.id, 'IN_PROGRESS'); }}
+                        className="p-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700 shadow-sm transition-colors"
+                        title="Start working"
+                      >
+                        <Play size={13} />
+                      </button>
+                    )}
+                    {ticket.status === 'IN_PROGRESS' && onQuickStatusChange && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onQuickStatusChange(ticket.id, 'RESOLVED'); }}
+                        className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-colors"
+                        title="Mark resolved"
+                      >
+                        <CheckCircle2 size={13} />
+                      </button>
+                    )}
+                    {onQuickStatusChange && (
+                      <div className="relative flex">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); }}
+                          className="p-1.5 rounded-lg bg-slate-600 text-white hover:bg-slate-700 shadow-sm transition-colors"
+                          title="More actions"
+                        >
+                          <MoreHorizontal size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             );
           })
         )}

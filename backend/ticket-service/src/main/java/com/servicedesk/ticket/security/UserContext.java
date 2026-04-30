@@ -4,6 +4,7 @@ import com.servicedesk.ticket.enums.UserRole;
 
 public class UserContext {
     private static final ThreadLocal<Long> CURRENT_USER_ID = new ThreadLocal<>();
+    private static final ThreadLocal<String> CURRENT_USERNAME = new ThreadLocal<>();
     private static final ThreadLocal<UserRole> CURRENT_USER_ROLE = new ThreadLocal<>();
 
     public static void setUserId(Long userId) {
@@ -12,6 +13,14 @@ public class UserContext {
 
     public static Long getUserId() {
         return CURRENT_USER_ID.get();
+    }
+
+    public static void setUsername(String username) {
+        CURRENT_USERNAME.set(username);
+    }
+
+    public static String getUsername() {
+        return CURRENT_USERNAME.get();
     }
 
     public static void setUserRole(UserRole role) {
@@ -24,6 +33,7 @@ public class UserContext {
 
     public static void clear() {
         CURRENT_USER_ID.remove();
+        CURRENT_USERNAME.remove();
         CURRENT_USER_ROLE.remove();
     }
 }

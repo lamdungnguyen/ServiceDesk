@@ -12,6 +12,8 @@ export interface Ticket {
   reporterName: string | null;
   reporterEmail: string | null;
   assigneeId: number | null;
+  escalated: boolean;
+  resolvedAt: string | null;
 }
 
 export interface TicketCreateRequest {

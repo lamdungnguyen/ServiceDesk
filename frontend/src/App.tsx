@@ -7,9 +7,11 @@ import Login from './pages/Login';
 import StaffLogin from './pages/StaffLogin';
 import CustomerPortal from './pages/CustomerPortal';
 import MyTickets from './pages/MyTickets';
+import Notifications from './pages/Notifications';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/auth';
 import RoleRoute from './components/RoleRoute';
+import CustomerChatBubble from './components/CustomerChatBubble';
 
 const AppRoutes = () => {
   const { user } = useAuth();
@@ -34,6 +36,11 @@ const AppRoutes = () => {
       <Route element={<RoleRoute allowedRoles={['ADMIN']} />}>
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
       </Route>
+
+      {/* Notifications - all roles */}
+      <Route element={<RoleRoute allowedRoles={['CUSTOMER', 'AGENT', 'ADMIN']} />}>
+        <Route path="/notifications" element={<Notifications />} />
+      </Route>
       
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -57,6 +64,7 @@ function App() {
           <main>
             <AppRoutes />
           </main>
+          <CustomerChatBubble />
         </div>
       </Router>
     </AuthProvider>

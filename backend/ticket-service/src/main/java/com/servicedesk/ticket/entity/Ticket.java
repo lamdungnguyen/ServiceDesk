@@ -63,8 +63,17 @@ public class Ticket {
     private Long assigneeId;
 
     @Column(name = "sla_notified")
+    @Builder.Default
     private Boolean slaNotified = false;
 
     @Column(name = "overdue_notified")
+    @Builder.Default
     private Boolean overdueNotified = false;
+
+    @Column(name = "escalated")
+    @Builder.Default
+    private Boolean escalated = false;
+
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
 }

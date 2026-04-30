@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Ticket, Users, Clock, Settings, Shield } from 'lucide-react';
+import { LayoutDashboard, Ticket, Users, Clock, Settings, Shield, Star, MessageSquare, TrendingUp, Siren } from 'lucide-react';
 import { getTickets } from '../../api/apiClient';
 import type { Ticket as TicketType } from '../../types/ticket';
+import { useAuth } from '../../context/auth';
 
 import Overview from './Overview';
 import Tickets from './Tickets';
 import UsersList from './Users';
 import SLA from './SLA';
+import Ratings from './Ratings';
+import MessagesTab from '../../components/MessagesTab';
+import AgentPerformanceTab from './AgentPerformance';
+import Escalation from './Escalation';
+import SettingsPage from './SettingsPage';
 
 const AdminDashboard = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
   const [tickets, setTickets] = useState<TicketType[]>([]);
@@ -61,6 +68,11 @@ const AdminDashboard = () => {
     { id: 'tickets', label: 'All Tickets', icon: <Ticket size={20} /> },
     { id: 'users', label: 'User Management', icon: <Users size={20} /> },
     { id: 'sla', label: 'SLA Monitoring', icon: <Clock size={20} /> },
+    { id: 'agents', label: 'Agent Performance', icon: <TrendingUp size={20} /> },
+    { id: 'escalation', label: 'Escalated Tickets', icon: <Siren size={20} /> },
+    { id: 'ratings', label: 'Agent Ratings', icon: <Star size={20} /> },
+    { id: 'messages', label: 'Messages', icon: <MessageSquare size={20} /> },
+    { id: 'settings', label: 'Settings', icon: <Settings size={20} /> },
   ];
 
   return (
@@ -101,27 +113,41 @@ const AdminDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 relative">
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-          </div>
-        ) : (
-          <div className="max-w-7xl mx-auto h-full">
-            {activeTab === 'overview' && <Overview tickets={tickets} />}
-            {activeTab === 'tickets' && (
-              <Tickets 
-                tickets={tickets} 
-                onTicketAssigned={handleTicketAssigned} 
-                initialSelectedTicketId={selectedTicketId}
-                onTicketViewed={() => setSelectedTicketId(null)}
-              />
-            )}
-            {activeTab === 'users' && <UsersList />}
-            {activeTab === 'sla' && <SLA tickets={tickets} />}
-          </div>
-        )}
-      </main>
+      {activeTab === 'messages' ? (
+        <div className="flex-1 overflow-hidden">
+          <MessagesTab
+            selfId={user?.id ?? 0}
+            selfName={user?.name ?? 'Admin'}
+            selfRole="ADMIN"
+          />
+        </div>
+      ) : (
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 relative">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+            </div>
+          ) : (
+            <div className="max-w-7xl mx-auto h-full">
+              {activeTab === 'overview' && <Overview tickets={tickets} />}
+              {activeTab === 'tickets' && (
+                <Tickets 
+                  tickets={tickets} 
+                  onTicketAssigned={handleTicketAssigned} 
+                  initialSelectedTicketId={selectedTicketId}
+                  onTicketViewed={() => setSelectedTicketId(null)}
+                />
+              )}
+              {activeTab === 'users' && <UsersList />}
+              {activeTab === 'sla' && <SLA tickets={tickets} />}
+              {activeTab === 'agents' && <AgentPerformanceTab />}
+              {activeTab === 'escalation' && <Escalation />}
+              {activeTab === 'ratings' && <Ratings />}
+              {activeTab === 'settings' && <SettingsPage />}
+            </div>
+          )}
+        </main>
+      )}
     </div>
   );
 };

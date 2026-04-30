@@ -1,5 +1,6 @@
 package com.servicedesk.ticket.controller;
 
+import com.servicedesk.ticket.dto.UserDetailResponse;
 import com.servicedesk.ticket.dto.UserLoginRequest;
 import com.servicedesk.ticket.dto.UserRegisterRequest;
 import com.servicedesk.ticket.dto.UserResponse;
@@ -40,6 +41,12 @@ public class UserController {
             return ResponseEntity.ok(userService.getUsersByRole(role));
         }
         return ResponseEntity.ok(userService.getAllUsers());
+    }
+
+    // GET /api/v1/users/{id}
+    @GetMapping("/{id}")
+    public ResponseEntity<UserDetailResponse> getUserById(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.getUserById(id));
     }
 
     // PATCH /api/v1/users/{id}/status  (Admin only)

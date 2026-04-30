@@ -23,4 +23,6 @@ public class TicketResponse {
     private String reporterName;
     private String reporterEmail;
     private Long assigneeId;
+    private Boolean escalated;
+    private LocalDateTime resolvedAt;
 }

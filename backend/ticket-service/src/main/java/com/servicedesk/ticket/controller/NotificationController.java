@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/notifications")
@@ -25,13 +26,32 @@ public class NotificationController {
         return ResponseEntity.ok(notificationService.getUserNotifications(userId));
     }
 
+    @GetMapping("/unread-count")
+    public ResponseEntity<Map<String, Long>> getUnreadCount() {
+        Long userId = UserContext.getUserId();
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        long count = notificationService.getUnreadCount(userId);
+        return ResponseEntity.ok(Map.of("count", count));
+    }
+
     @PutMapping("/{id}/read")
     public ResponseEntity<Notification> markAsRead(@PathVariable Long id) {
         Long userId = UserContext.getUserId();
         if (userId == null) {
             return ResponseEntity.status(401).build();
         }
-        // In a more robust system, we would check if the notification belongs to the user
         return ResponseEntity.ok(notificationService.markAsRead(id));
+    }
+
+    @PutMapping("/read-all")
+    public ResponseEntity<Void> markAllAsRead() {
+        Long userId = UserContext.getUserId();
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        notificationService.markAllAsRead(userId);
+        return ResponseEntity.ok().build();
     }
 }

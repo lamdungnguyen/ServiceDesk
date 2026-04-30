@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { X, Loader2, Calendar, Clock, AlertCircle, MessageSquare, Send, Tag, Flag } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { X, Loader2, Calendar, Clock, AlertCircle, MessageSquare, Send, Tag, Flag, Star } from 'lucide-react';
 import type { Ticket } from '../types/ticket';
-import { getComments, postComment, type Comment } from '../api/apiClient';
+import { getComments, submitRating, getRatingByTicket, type Comment, type RatingPayload } from '../api/apiClient';
 import { useAuth } from '../context/auth';
+import { subscribeToTicket, sendChatMessage, type ChatMessagePayload } from '../services/websocket';
+import CallPanel from './CallPanel';
+import UserProfilePopover from './UserProfilePopover';
 
 interface CustomerTicketDetailModalProps {
   ticket: Ticket;
@@ -31,12 +34,14 @@ function formatDateTime(iso: string) {
   });
 }
 
-function getInitials(name: string) {
+function getInitials(name?: string) {
+  if (!name) return '?';
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
 const AVATAR_COLORS = ['from-blue-500 to-indigo-600', 'from-emerald-500 to-teal-600', 'from-purple-500 to-pink-600', 'from-amber-500 to-orange-600'];
-function avatarColor(name: string) {
+function avatarColor(name?: string) {
+  if (!name) return AVATAR_COLORS[0];
   return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
 }
 
@@ -47,32 +52,51 @@ const CustomerTicketDetailModal = ({ ticket, isOpen, onClose }: CustomerTicketDe
   const [commentText, setCommentText] = useState('');
   const [isSending, setIsSending] = useState(false);
 
+  // Rating state
+  const [existingRating, setExistingRating] = useState<RatingPayload | null>(null);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [ratingError, setRatingError] = useState('');
+
   const commentsEndRef = useRef<HTMLDivElement>(null);
+
+  const handleWsMessage = useCallback((msg: ChatMessagePayload) => {
+    setComments(prev => {
+      if (msg.id && prev.some(c => c.id === msg.id)) return prev;
+      return [...prev, {
+        id: msg.id ?? Date.now(),
+        ticketId: msg.ticketId,
+        content: msg.content,
+        authorId: msg.senderId,
+        authorName: msg.senderName,
+        createdAt: msg.timestamp ?? new Date().toISOString(),
+      }];
+    });
+  }, []);
 
   useEffect(() => {
     if (isOpen && ticket) {
       let isCancelled = false;
-      const fetchComments = () => {
-        getComments(ticket.id)
-          .then(data => {
-            if (!isCancelled) setComments(data);
-          })
-          .catch(console.error);
-      };
-      
+
       setLoading(true);
-      fetchComments();
-      const interval = window.setInterval(fetchComments, 5000);
-      
-      // Delay turning off loading so we show it at least once briefly
-      setTimeout(() => { if (!isCancelled) setLoading(false); }, 300);
+
+      // Load existing comments via REST
+      getComments(ticket.id)
+        .then(data => { if (!isCancelled) setComments(data); })
+        .catch(console.error)
+        .finally(() => { if (!isCancelled) setLoading(false); });
+
+      // Connect WS and subscribe for real-time messages
+      const unsubscribeWs = subscribeToTicket(ticket.id, handleWsMessage);
 
       return () => {
         isCancelled = true;
-        window.clearInterval(interval);
+        unsubscribeWs();
       };
     }
-  }, [isOpen, ticket]);
+  }, [isOpen, ticket, handleWsMessage]);
 
   useEffect(() => {
     if (commentsEndRef.current) {
@@ -80,20 +104,43 @@ const CustomerTicketDetailModal = ({ ticket, isOpen, onClose }: CustomerTicketDe
     }
   }, [comments]);
 
+  // Fetch existing rating for resolved/closed tickets
+  useEffect(() => {
+    if (isOpen && ticket && (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED')) {
+      getRatingByTicket(ticket.id)
+        .then(data => { if (data) setExistingRating(data); })
+        .catch(() => {});
+    }
+  }, [isOpen, ticket]);
+
+  const handleSubmitRating = async () => {
+    if (selectedRating < 1) return;
+    setSubmittingRating(true);
+    setRatingError('');
+    try {
+      const result = await submitRating(ticket.id, selectedRating, ratingComment || undefined);
+      setExistingRating(result);
+    } catch (err: any) {
+      setRatingError(err?.response?.data?.message || err?.message || 'Failed to submit rating');
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
   if (!isOpen) return null;
 
-  const handleSendComment = async () => {
-    if (!commentText.trim()) return;
+  const handleSendComment = () => {
+    if (!commentText.trim() || !user) return;
     setIsSending(true);
-    try {
-      const newComment = await postComment(ticket.id, commentText.trim());
-      setComments(prev => [...prev, newComment]);
-      setCommentText('');
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSending(false);
-    }
+    sendChatMessage({
+      ticketId: ticket.id,
+      senderId: user.id,
+      senderName: user.name,
+      senderRole: 'CUSTOMER',
+      content: commentText.trim(),
+    });
+    setCommentText('');
+    setIsSending(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -122,12 +169,25 @@ const CustomerTicketDetailModal = ({ ticket, isOpen, onClose }: CustomerTicketDe
             </div>
             <h2 className="text-xl font-bold text-slate-800 dark:text-white">{ticket.title}</h2>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            {user && (
+              <CallPanel
+                ticketId={ticket.id}
+                selfId={user.id}
+                selfName={user.name}
+                selfRole="CUSTOMER"
+                peerId={ticket.assigneeId ?? null}
+                peerName={ticket.assigneeId ? `Agent #${ticket.assigneeId}` : undefined}
+                disabledReason={!ticket.assigneeId ? 'Wait for an agent to be assigned' : undefined}
+              />
+            )}
+            <button 
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -172,6 +232,90 @@ const CustomerTicketDetailModal = ({ ticket, isOpen, onClose }: CustomerTicketDe
                 {ticket.description || <span className="text-slate-400 italic">No description provided.</span>}
               </div>
             </div>
+
+            {/* Rating Section - only for RESOLVED/CLOSED tickets */}
+            {(ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') && ticket.assigneeId && (
+              <div className="mt-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm">
+                <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/10 dark:to-yellow-900/10">
+                  <Star size={15} className="text-amber-500" />
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200">Rate Your Experience</span>
+                </div>
+                <div className="px-5 py-5">
+                  {existingRating ? (
+                    // Already rated - show the rating
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1.5 mb-2">
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <Star
+                            key={s}
+                            size={28}
+                            className={s <= existingRating.score ? 'text-amber-400 fill-amber-400' : 'text-slate-200 dark:text-slate-700'}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        You rated {existingRating.score}/5
+                      </p>
+                      {existingRating.comment && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 italic">
+                          "{existingRating.comment}"
+                        </p>
+                      )}
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-2">
+                        Thank you for your feedback!
+                      </p>
+                    </div>
+                  ) : (
+                    // Rating form
+                    <div>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 text-center">How was the support you received?</p>
+                      <div className="flex items-center justify-center gap-2 mb-4">
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <button
+                            key={s}
+                            onMouseEnter={() => setHoverRating(s)}
+                            onMouseLeave={() => setHoverRating(0)}
+                            onClick={() => setSelectedRating(s)}
+                            className="transition-transform hover:scale-110 active:scale-95"
+                          >
+                            <Star
+                              size={32}
+                              className={`transition-colors ${
+                                s <= (hoverRating || selectedRating)
+                                  ? 'text-amber-400 fill-amber-400 drop-shadow-sm'
+                                  : 'text-slate-200 dark:text-slate-700 hover:text-amber-200'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      {selectedRating > 0 && (
+                        <div className="text-center text-xs font-semibold text-amber-600 dark:text-amber-400 mb-3">
+                          {selectedRating === 1 ? 'Poor' : selectedRating === 2 ? 'Fair' : selectedRating === 3 ? 'Good' : selectedRating === 4 ? 'Very Good' : 'Excellent!'}
+                        </div>
+                      )}
+                      <textarea
+                        value={ratingComment}
+                        onChange={e => setRatingComment(e.target.value)}
+                        placeholder="Leave a comment (optional)..."
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-400 outline-none resize-none text-slate-800 dark:text-slate-200 placeholder-slate-400 transition-all"
+                        rows={2}
+                      />
+                      {ratingError && (
+                        <p className="text-xs text-red-500 mt-2">{ratingError}</p>
+                      )}
+                      <button
+                        onClick={handleSubmitRating}
+                        disabled={selectedRating < 1 || submittingRating}
+                        className="mt-3 w-full py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                      >
+                        {submittingRating ? 'Submitting...' : 'Submit Rating'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             
           </div>
 
@@ -194,13 +338,17 @@ const CustomerTicketDetailModal = ({ ticket, isOpen, onClose }: CustomerTicketDe
                 comments.map(c => {
                   const isCustomer = c.authorId === ticket.reporterId || (!ticket.reporterId && c.authorName === ticket.reporterName);
                   return (
-                    <div key={c.id} className={`flex gap-3 ${isCustomer ? 'flex-row-reverse' : ''}`}>
-                      <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${avatarColor(c.authorName)} text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm`}>
-                        {getInitials(c.authorName)}
-                      </div>
-                      <div className={`max-w-[85%] ${isCustomer ? 'items-end' : ''}`}>
+                    <div key={c.id} className={`flex gap-3 group/comment ${isCustomer ? 'flex-row-reverse' : ''}`}>
+                      <UserProfilePopover userId={c.authorId} userName={c.authorName}>
+                        <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${avatarColor(c.authorName)} text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm ring-2 ring-transparent group-hover/comment:ring-primary-500/30 transition-all`}>
+                          {getInitials(c.authorName)}
+                        </div>
+                      </UserProfilePopover>
+                      <div className={`flex flex-col max-w-[85%] ${isCustomer ? 'items-end' : ''}`}>
                         <div className={`flex items-center gap-2 mb-1 ${isCustomer ? 'flex-row-reverse' : ''}`}>
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{c.authorName}</span>
+                          <UserProfilePopover userId={c.authorId} userName={c.authorName}>
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-primary-500 transition-colors cursor-pointer">{c.authorName}</span>
+                          </UserProfilePopover>
                         </div>
                         <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm border ${
                           isCustomer

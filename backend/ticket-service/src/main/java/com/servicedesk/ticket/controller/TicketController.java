@@ -33,7 +33,14 @@ public class TicketController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TicketResponse>> getAllTickets() {
+    public ResponseEntity<List<TicketResponse>> getAllTickets(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String priority,
+            @RequestParam(required = false) Boolean overdue,
+            @RequestParam(required = false) String keyword) {
+        if (status != null || priority != null || overdue != null || (keyword != null && !keyword.trim().isEmpty())) {
+            return ResponseEntity.ok(ticketService.getFilteredTickets(status, priority, overdue, keyword));
+        }
         List<TicketResponse> responses = ticketService.getAllTickets();
         return ResponseEntity.ok(responses);
     }
@@ -56,6 +63,11 @@ public class TicketController {
         
         TicketResponse response = ticketService.updateTicketStatus(id, statusEnum);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/escalated")
+    public ResponseEntity<List<TicketResponse>> getEscalatedTickets() {
+        return ResponseEntity.ok(ticketService.getEscalatedTickets());
     }
 
     @PutMapping("/{id}/assign")

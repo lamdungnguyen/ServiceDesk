@@ -25,7 +25,9 @@ public class Notification {
     private String message;
 
     @Column(nullable = false)
-    private String type; // INFO, WARNING, ALERT
+    private String type; // INFO, WARNING, ALERT, MESSAGE
+
+    private Long ticketId;
 
     @Column(nullable = false)
     private Boolean isRead;

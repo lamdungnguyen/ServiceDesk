@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { type Ticket } from '../../types/ticket';
 import { assignTicket, getAllUsers, type Comment, type UserPayload } from '../../api/apiClient';
+import { useAuth } from '../../context/auth';
+import CallPanel from '../CallPanel';
+import UserProfilePopover from '../UserProfilePopover';
 import {
   Clock, User, MessageSquare, Send, CheckCircle2,
   ChevronDown, Flag, AlertCircle, Inbox, Loader2,
@@ -62,16 +65,19 @@ function formatRelative(iso: string) {
   return formatDateTime(iso);
 }
 
-function getInitials(name: string) {
+function getInitials(name?: string) {
+  if (!name) return '?';
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
 const AVATAR_COLORS = ['from-blue-500 to-indigo-600', 'from-emerald-500 to-teal-600', 'from-purple-500 to-pink-600', 'from-amber-500 to-orange-600'];
-function avatarColor(name: string) {
+function avatarColor(name?: string) {
+  if (!name) return AVATAR_COLORS[0];
   return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
 }
 
 const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTicketAssigned, onPostComment, agentName }: TicketDetailProps) => {
+  const { user } = useAuth();
   const [commentText, setCommentText] = useState('');
   const commentsEndRef = useRef<HTMLDivElement>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -213,6 +219,19 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
             <Clock size={11} />
             {sla.label}
           </span>
+
+          {/* Call button */}
+          {user && (
+            <CallPanel
+              ticketId={ticket.id}
+              selfId={user.id}
+              selfName={user.name}
+              selfRole={user.role === 'AGENT' || user.role === 'ADMIN' ? user.role : 'AGENT'}
+              peerId={ticket.reporterId ?? null}
+              peerName={ticket.reporterName ?? undefined}
+              disabledReason={!ticket.reporterId ? 'No reporter to call' : undefined}
+            />
+          )}
         </div>
       </div>
 
@@ -301,14 +320,18 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
               {comments.map(c => {
                 const isAgent = c.authorId !== ticket.reporterId;
                 return (
-                  <div key={c.id} className={`flex gap-3 ${isAgent ? '' : 'flex-row-reverse'}`}>
-                    <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${avatarColor(c.authorName)} text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm`}>
-                      {getInitials(c.authorName)}
-                    </div>
-                    <div className={`max-w-[85%] ${isAgent ? '' : 'items-end'}`}>
-                      <div className={`flex items-center gap-2 mb-1 ${isAgent ? '' : 'flex-row-reverse'}`}>
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors">{c.authorName}</span>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 transition-colors">{formatRelative(c.createdAt)}</span>
+                  <div key={c.id} className={`flex gap-3 group/comment ${isAgent ? 'flex-row-reverse' : ''}`}>
+                    <UserProfilePopover userId={c.authorId} userName={c.authorName}>
+                      <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${avatarColor(c.authorName)} text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm ring-2 ring-transparent group-hover/comment:ring-primary-500/30 transition-all`}>
+                        {getInitials(c.authorName)}
+                      </div>
+                    </UserProfilePopover>
+                    <div className={`flex flex-col max-w-[85%] ${isAgent ? 'items-end' : ''}`}>
+                      <div className={`flex items-center gap-2 mb-1 ${isAgent ? 'flex-row-reverse' : ''}`}>
+                        <UserProfilePopover userId={c.authorId} userName={c.authorName}>
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-primary-500 transition-colors cursor-pointer">{c.authorName}</span>
+                        </UserProfilePopover>
+                        <span className="text-[10px] font-medium text-slate-400">{formatRelative(c.createdAt)}</span>
                       </div>
                       <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm border ${
                         isAgent

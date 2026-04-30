@@ -1,18 +1,22 @@
 package com.servicedesk.ticket.service.impl;
 
+import com.servicedesk.ticket.dto.UserDetailResponse;
 import com.servicedesk.ticket.dto.UserLoginRequest;
 import com.servicedesk.ticket.dto.UserRegisterRequest;
 import com.servicedesk.ticket.dto.UserResponse;
 import com.servicedesk.ticket.entity.User;
+import com.servicedesk.ticket.enums.TicketStatus;
 import com.servicedesk.ticket.enums.UserRole;
 import com.servicedesk.ticket.enums.UserStatus;
 import com.servicedesk.ticket.exception.ResourceNotFoundException;
+import com.servicedesk.ticket.repository.TicketRepository;
 import com.servicedesk.ticket.repository.UserRepository;
 import com.servicedesk.ticket.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,6 +26,7 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final TicketRepository ticketRepository;
 
     @Override
     public UserResponse register(UserRegisterRequest request) {
@@ -85,6 +90,20 @@ public class UserServiceImpl implements UserService {
         return userRepository.findByRole(role).stream()
                 .map(UserResponse::from)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public UserDetailResponse getUserById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+
+        List<TicketStatus> openStatuses = Arrays.asList(
+                TicketStatus.RESOLVED, TicketStatus.CLOSED);
+
+        long totalTickets = ticketRepository.countByReporterId(id);
+        long openTickets = ticketRepository.countByReporterIdAndStatusNotIn(id, openStatuses);
+
+        return UserDetailResponse.from(user, totalTickets, openTickets);
     }
 
     @Override

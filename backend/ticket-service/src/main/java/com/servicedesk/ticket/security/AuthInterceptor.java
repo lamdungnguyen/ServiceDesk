@@ -42,8 +42,12 @@ public class AuthInterceptor implements HandlerInterceptor {
         try {
             Long userId = Long.parseLong(userIdStr);
             UserRole role = UserRole.valueOf(roleStr.toUpperCase());
+            String username = request.getHeader("X-User-Name");
             UserContext.setUserId(userId);
             UserContext.setUserRole(role);
+            if (username != null) {
+                UserContext.setUsername(username);
+            }
         } catch (IllegalArgumentException e) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid User ID or Role format");
             return false;

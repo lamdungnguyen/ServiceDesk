@@ -14,11 +14,14 @@ import com.servicedesk.ticket.service.TicketService;
 import com.servicedesk.ticket.service.AIService;
 import com.servicedesk.ticket.dto.AIResponse;
 import com.servicedesk.ticket.exception.UnauthorizedAccessException;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -139,6 +142,9 @@ public class TicketServiceImpl implements TicketService {
         }
         
         ticket.setStatus(status);
+        if (status == TicketStatus.RESOLVED && ticket.getResolvedAt() == null) {
+            ticket.setResolvedAt(LocalDateTime.now());
+        }
         Ticket updatedTicket = ticketRepository.save(ticket);
         
         if (status == TicketStatus.RESOLVED) {
@@ -179,6 +185,70 @@ public class TicketServiceImpl implements TicketService {
         return mapToResponse(updatedTicket);
     }
 
+    @Override
+    public List<TicketResponse> getFilteredTickets(String status, String priority, Boolean overdue, String keyword) {
+        Long userId = UserContext.getUserId();
+        UserRole role = UserContext.getUserRole();
+
+        Specification<Ticket> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // RBAC
+            if (role == UserRole.CUSTOMER) {
+                predicates.add(cb.equal(root.get("reporterId"), userId));
+            } else if (role == UserRole.AGENT) {
+                predicates.add(cb.equal(root.get("assigneeId"), userId));
+            }
+
+            // Status filter
+            if (status != null && !status.trim().isEmpty()) {
+                try {
+                    TicketStatus statusEnum = TicketStatus.valueOf(status.toUpperCase());
+                    predicates.add(cb.equal(root.get("status"), statusEnum));
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+
+            // Priority filter
+            if (priority != null && !priority.trim().isEmpty()) {
+                try {
+                    Priority priorityEnum = Priority.valueOf(priority.toUpperCase());
+                    predicates.add(cb.equal(root.get("priority"), priorityEnum));
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+
+            // Overdue filter
+            if (overdue != null && overdue) {
+                predicates.add(cb.lessThan(root.get("dueDate"), LocalDateTime.now()));
+                predicates.add(cb.notEqual(root.get("status"), TicketStatus.RESOLVED));
+                predicates.add(cb.notEqual(root.get("status"), TicketStatus.CLOSED));
+            }
+
+            // Keyword search
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                String pattern = "%" + keyword.trim().toLowerCase() + "%";
+                Predicate titleMatch = cb.like(cb.lower(root.get("title")), pattern);
+                Predicate descMatch = cb.like(cb.lower(root.get("description")), pattern);
+                predicates.add(cb.or(titleMatch, descMatch));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return ticketRepository.findAll(spec).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<TicketResponse> getEscalatedTickets() {
+        return ticketRepository.findByEscalatedTrue()
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     private TicketResponse mapToResponse(Ticket ticket) {
         return TicketResponse.builder()
                 .id(ticket.getId())
@@ -194,6 +264,8 @@ public class TicketServiceImpl implements TicketService {
                 .reporterName(ticket.getReporterName())
                 .reporterEmail(ticket.getReporterEmail())
                 .assigneeId(ticket.getAssigneeId())
+                .escalated(ticket.getEscalated())
+                .resolvedAt(ticket.getResolvedAt())
                 .build();
     }
 

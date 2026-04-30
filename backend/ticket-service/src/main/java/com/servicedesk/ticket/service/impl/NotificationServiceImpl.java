@@ -8,6 +8,7 @@ import com.servicedesk.ticket.repository.NotificationRepository;
 import com.servicedesk.ticket.repository.UserRepository;
 import com.servicedesk.ticket.service.NotificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,17 +20,30 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Override
     @Transactional
     public Notification createNotification(Long userId, String message, String type) {
+        return createNotification(userId, message, type, null);
+    }
+
+    @Override
+    @Transactional
+    public Notification createNotification(Long userId, String message, String type, Long ticketId) {
         Notification notification = Notification.builder()
                 .userId(userId)
                 .message(message)
                 .type(type)
+                .ticketId(ticketId)
                 .isRead(false)
                 .build();
-        return notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+
+        // Push real-time notification via WebSocket
+        messagingTemplate.convertAndSend("/topic/notifications/" + userId, saved);
+
+        return saved;
     }
 
     @Override
@@ -44,6 +58,17 @@ public class NotificationServiceImpl implements NotificationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Notification not found with id: " + notificationId));
         notification.setIsRead(true);
         return notificationRepository.save(notification);
+    }
+
+    @Override
+    @Transactional
+    public void markAllAsRead(Long userId) {
+        notificationRepository.markAllAsReadByUserId(userId);
+    }
+
+    @Override
+    public long getUnreadCount(Long userId) {
+        return notificationRepository.countByUserIdAndIsReadFalse(userId);
     }
 
     @Override

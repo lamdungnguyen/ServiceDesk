@@ -31,18 +31,19 @@ public class SlaMonitorTask {
         for (Ticket ticket : activeTickets) {
             if (ticket.getDueDate() == null) continue;
 
-            // 1. Check if overdue
-            if (now.isAfter(ticket.getDueDate()) && !ticket.getOverdueNotified()) {
-                log.info("Ticket #{} is overdue. Notifying ADMIN.", ticket.getId());
-                notificationService.notifyAdmins(
-                        "Ticket #" + ticket.getId() + " is overdue!",
-                        "ALERT"
-                );
+            // 1. Check if overdue → escalate
+            if (now.isAfter(ticket.getDueDate()) && !Boolean.TRUE.equals(ticket.getOverdueNotified())) {
+                log.info("Ticket #{} is overdue. Escalating and notifying ADMIN.", ticket.getId());
+                ticket.setEscalated(true);
                 ticket.setOverdueNotified(true);
                 ticketRepository.save(ticket);
+                notificationService.notifyAdmins(
+                        "Ticket #" + ticket.getId() + " has been escalated — SLA breached!",
+                        "ALERT"
+                );
             } 
             // 2. Check if near SLA (within 1 hour)
-            else if (!ticket.getOverdueNotified() && !ticket.getSlaNotified() && ticket.getAssigneeId() != null) {
+            else if (!Boolean.TRUE.equals(ticket.getOverdueNotified()) && !Boolean.TRUE.equals(ticket.getSlaNotified()) && ticket.getAssigneeId() != null) {
                 if (now.plusHours(1).isAfter(ticket.getDueDate()) && now.isBefore(ticket.getDueDate())) {
                     log.info("Ticket #{} is near SLA. Notifying AGENT.", ticket.getId());
                     notificationService.createNotification(

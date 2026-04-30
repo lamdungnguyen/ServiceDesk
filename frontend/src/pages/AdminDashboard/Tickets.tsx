@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Ticket } from '../../types/ticket';
 import { Search, Filter, MoreVertical, ShieldAlert, Loader2, X, Calendar, Clock, User, MessageSquare, FileText } from 'lucide-react';
 import { getAllUsers, assignTicket, getComments, type UserPayload, type Comment } from '../../api/apiClient';
+import { subscribeToTicket, type ChatMessagePayload } from '../../services/websocket';
 
 interface TicketsProps {
   tickets: Ticket[];
@@ -34,6 +35,27 @@ const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketV
       if (onTicketViewed) onTicketViewed();
     }
   }, [initialSelectedTicketId, tickets, onTicketViewed]);
+
+  const handleWsMessage = useCallback((msg: ChatMessagePayload) => {
+    setComments(prev => {
+      if (msg.id && prev.some(c => c.id === msg.id)) return prev;
+      return [...prev, {
+        id: msg.id ?? Date.now(),
+        ticketId: msg.ticketId,
+        content: msg.content,
+        authorId: msg.senderId,
+        authorName: msg.senderName,
+        createdAt: msg.timestamp ?? new Date().toISOString(),
+      }];
+    });
+  }, []);
+
+  // WebSocket subscription for selected ticket
+  useEffect(() => {
+    if (!selectedTicket) return;
+    const unsubscribe = subscribeToTicket(selectedTicket.id, handleWsMessage);
+    return () => unsubscribe();
+  }, [selectedTicket, handleWsMessage]);
 
   const openTicketModal = async (ticket: Ticket) => {
     setSelectedTicket(ticket);

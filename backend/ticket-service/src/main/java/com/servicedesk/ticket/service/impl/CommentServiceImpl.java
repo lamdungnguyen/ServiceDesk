@@ -8,6 +8,7 @@ import com.servicedesk.ticket.enums.UserRole;
 import com.servicedesk.ticket.exception.ResourceNotFoundException;
 import com.servicedesk.ticket.exception.UnauthorizedAccessException;
 import com.servicedesk.ticket.repository.CommentRepository;
+import com.servicedesk.ticket.repository.UserRepository;
 import com.servicedesk.ticket.security.UserContext;
 import com.servicedesk.ticket.repository.TicketRepository;
 import com.servicedesk.ticket.service.CommentService;
@@ -24,6 +25,7 @@ public class CommentServiceImpl implements CommentService {
 
     private final CommentRepository commentRepository;
     private final TicketRepository ticketRepository;
+    private final UserRepository userRepository;
     private final NotificationService notificationService;
 
     @Override
@@ -49,13 +51,15 @@ public class CommentServiceImpl implements CommentService {
             notificationService.createNotification(
                     ticket.getAssigneeId(),
                     "New comment from customer on ticket #" + ticket.getId(),
-                    "INFO"
+                    "INFO",
+                    ticket.getId()
             );
         } else if (role == UserRole.AGENT && ticket.getReporterId() != null) {
             notificationService.createNotification(
                     ticket.getReporterId(),
                     "New comment from agent on ticket #" + ticket.getId(),
-                    "INFO"
+                    "INFO",
+                    ticket.getId()
             );
         }
 
@@ -69,16 +73,38 @@ public class CommentServiceImpl implements CommentService {
 
         checkTicketAccess(ticket);
 
-        return commentRepository.findByTicketId(ticketId).stream()
-                .map(this::mapToResponse)
+        List<Comment> comments = commentRepository.findByTicketId(ticketId);
+        
+        List<Long> userIds = comments.stream()
+                .map(Comment::getUserId)
+                .distinct()
+                .collect(Collectors.toList());
+                
+        java.util.Map<Long, String> userNames = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(
+                        com.servicedesk.ticket.entity.User::getId, 
+                        com.servicedesk.ticket.entity.User::getName
+                ));
+
+        return comments.stream()
+                .map(comment -> mapToResponse(comment, userNames.getOrDefault(comment.getUserId(), "User " + comment.getUserId())))
                 .collect(Collectors.toList());
     }
 
     private CommentResponse mapToResponse(Comment comment) {
+        String authorName = userRepository.findById(comment.getUserId())
+                .map(u -> u.getName())
+                .orElse("User " + comment.getUserId());
+        return mapToResponse(comment, authorName);
+    }
+
+    private CommentResponse mapToResponse(Comment comment, String authorName) {
         return CommentResponse.builder()
                 .id(comment.getId())
                 .ticketId(comment.getTicketId())
                 .userId(comment.getUserId())
+                .authorId(comment.getUserId())
+                .authorName(authorName)
                 .content(comment.getContent())
                 .createdAt(comment.getCreatedAt())
                 .build();
