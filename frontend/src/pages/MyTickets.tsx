@@ -1,18 +1,34 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Ticket as TicketType } from '../types/ticket';
 import { getTickets } from '../api/apiClient';
 import TicketCard from '../components/TicketCard';
 import CustomerTicketDetailModal from '../components/CustomerTicketDetailModal';
 import { useAuth } from '../context/auth';
-import { RefreshCcw, AlertCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { RefreshCcw, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+
+type SortField = 'title' | 'priority' | 'status' | 'createdAt';
+type SortDir = 'asc' | 'desc';
+
+const PRIORITY_ORDER: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3, URGENT: 4 };
+const STATUS_ORDER: Record<string, number> = { NEW: 1, ASSIGNED: 2, IN_PROGRESS: 3, RESOLVED: 4, CLOSED: 5 };
+
+const SORT_LABELS: Record<SortField, string> = {
+  title: 'Tên',
+  priority: 'Mức độ',
+  status: 'Trạng thái',
+  createdAt: 'Ngày tạo',
+};
 
 const MyTickets = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
+  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
@@ -37,9 +53,53 @@ const MyTickets = () => {
     }
   }, [fetchTickets, user]);
 
+  // Auto-open ticket từ query param ?ticketId=X (từ notification)
+  useEffect(() => {
+    const ticketIdParam = searchParams.get('ticketId');
+    if (ticketIdParam && tickets.length > 0) {
+      const target = tickets.find(t => t.id === Number(ticketIdParam));
+      if (target) {
+        setSelectedTicket(target);
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, tickets, setSearchParams]);
+
+  const sortedTickets = useMemo(() => {
+    return [...tickets].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'title') {
+        cmp = a.title.localeCompare(b.title, 'vi');
+      } else if (sortField === 'priority') {
+        cmp = (PRIORITY_ORDER[a.priority] ?? 0) - (PRIORITY_ORDER[b.priority] ?? 0);
+      } else if (sortField === 'status') {
+        cmp = (STATUS_ORDER[a.status] ?? 0) - (STATUS_ORDER[b.status] ?? 0);
+      } else if (sortField === 'createdAt') {
+        cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [tickets, sortField, sortDir]);
+
+  const handleSortField = (field: SortField) => {
+    if (field === sortField) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (field !== sortField) return <ArrowUpDown size={13} className="opacity-40" />;
+    return sortDir === 'asc'
+      ? <ArrowUp size={13} className="text-primary-500" />
+      : <ArrowDown size={13} className="text-primary-500" />;
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 dark:text-white mb-2 tracking-tight">My Tickets</h1>
           <p className="text-slate-500 dark:text-slate-400">Track and manage your support requests.</p>
@@ -55,6 +115,28 @@ const MyTickets = () => {
           </Link>
         </div>
       </div>
+
+      {/* Sort Controls */}
+      {tickets.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-6 p-3 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">Sắp xếp:</span>
+          {(Object.keys(SORT_LABELS) as SortField[]).map(field => (
+            <button
+              key={field}
+              onClick={() => handleSortField(field)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                sortField === field
+                  ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300 shadow-sm'
+                  : 'bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-primary-300 dark:hover:border-primary-700'
+              }`}
+            >
+              {SORT_LABELS[field]}
+              <SortIcon field={field} />
+            </button>
+          ))}
+          <span className="ml-auto text-xs text-slate-400 dark:text-slate-500">{tickets.length} ticket{tickets.length !== 1 ? 's' : ''}</span>
+        </div>
+      )}
 
       {error && (
         <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl flex items-center gap-3 text-red-700 dark:text-red-400">
@@ -85,7 +167,7 @@ const MyTickets = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {tickets.map((ticket) => (
+          {sortedTickets.map((ticket) => (
             <TicketCard key={ticket.id} ticket={ticket} onClick={() => setSelectedTicket(ticket)} />
           ))}
         </div>

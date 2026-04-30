@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/auth';
 import { getTickets, updateTicketStatus, getComments, postComment } from '../api/apiClient';
 import type { Ticket } from '../types/ticket';
@@ -19,6 +20,7 @@ const isOverdue = (ticket: Ticket) =>
 
 const AgentWorkspace = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabId>('assigned');
   const [allTickets, setAllTickets] = useState<Ticket[]>([]);
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
@@ -49,6 +51,36 @@ const AgentWorkspace = () => {
       void fetchTickets();
     }, 0);
     return () => window.clearTimeout(timer);
+  }, [fetchTickets]);
+
+  // Auto-select ticket from query param (from notification click)
+  useEffect(() => {
+    const ticketIdParam = searchParams.get('ticketId');
+    if (ticketIdParam && allTickets.length > 0) {
+      const targetId = Number(ticketIdParam);
+      const targetTicket = allTickets.find(t => t.id === targetId);
+      if (targetTicket) {
+        setSelectedTicketId(targetId);
+        // Switch to appropriate tab based on ticket status
+        if (targetTicket.status === 'IN_PROGRESS') {
+          setActiveTab('in_progress');
+        } else if (targetTicket.status === 'RESOLVED' || targetTicket.status === 'CLOSED') {
+          setActiveTab('resolved');
+        } else if (isOverdue(targetTicket)) {
+          setActiveTab('overdue');
+        } else {
+          setActiveTab('assigned');
+        }
+        // Clear query param
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, allTickets, setSearchParams]);
+
+  // Polling for real-time updates (new assignments)
+  useEffect(() => {
+    const interval = setInterval(fetchTickets, 10000);
+    return () => clearInterval(interval);
   }, [fetchTickets]);
 
   // Fetch comments when ticket is selected and poll every 5s

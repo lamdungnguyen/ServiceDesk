@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Bell, LogOut, MessageSquare, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { Search, Bell, LogOut, AlertCircle, Info } from 'lucide-react';
 import { useAuth } from '../context/auth';
 import { getNotifications, markNotificationAsRead, type Notification } from '../api/apiClient';
 import logoUrl from '../assets/logo.png';
@@ -46,6 +46,11 @@ const Navbar: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const extractTicketId = (message: string): number | null => {
+    const match = message.match(/(?:TKT-|ticket\s*#?|#)(\d+)/i);
+    return match ? Number(match[1]) : null;
+  };
+
   const handleNotificationClick = async (n: Notification) => {
     if (!n.isRead) {
       try {
@@ -53,6 +58,18 @@ const Navbar: React.FC = () => {
         setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, isRead: true } : x));
       } catch (err) {
         console.error(err);
+      }
+    }
+    const ticketId = extractTicketId(n.message);
+    if (ticketId) {
+      setShowNotifications(false);
+      // Route based on user role
+      if (user?.role === 'AGENT') {
+        navigate(`/staff/dashboard?ticketId=${ticketId}`);
+      } else if (user?.role === 'ADMIN') {
+        navigate(`/admin/dashboard?tickets&ticketId=${ticketId}`);
+      } else {
+        navigate(`/my-tickets?ticketId=${ticketId}`);
       }
     }
   };

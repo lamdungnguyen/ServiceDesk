@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, Ticket, Users, Clock, Settings, Shield } from 'lucide-react';
 import { getTickets } from '../../api/apiClient';
 import type { Ticket as TicketType } from '../../types/ticket';
@@ -9,9 +10,11 @@ import UsersList from './Users';
 import SLA from './SLA';
 
 const AdminDashboard = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
 
   const fetchTickets = async () => {
     try {
@@ -36,6 +39,22 @@ const AdminDashboard = () => {
 
     return () => window.clearTimeout(timer);
   }, []);
+
+  // Handle query params for notification navigation
+  useEffect(() => {
+    const ticketIdParam = searchParams.get('ticketId');
+    const ticketsTab = searchParams.get('tickets');
+    
+    if (ticketsTab !== null || ticketIdParam) {
+      setActiveTab('tickets');
+    }
+    
+    if (ticketIdParam) {
+      setSelectedTicketId(Number(ticketIdParam));
+      // Clear query params after processing
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const navItems = [
     { id: 'overview', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
@@ -90,7 +109,14 @@ const AdminDashboard = () => {
         ) : (
           <div className="max-w-7xl mx-auto h-full">
             {activeTab === 'overview' && <Overview tickets={tickets} />}
-            {activeTab === 'tickets' && <Tickets tickets={tickets} onTicketAssigned={handleTicketAssigned} />}
+            {activeTab === 'tickets' && (
+              <Tickets 
+                tickets={tickets} 
+                onTicketAssigned={handleTicketAssigned} 
+                initialSelectedTicketId={selectedTicketId}
+                onTicketViewed={() => setSelectedTicketId(null)}
+              />
+            )}
             {activeTab === 'users' && <UsersList />}
             {activeTab === 'sla' && <SLA tickets={tickets} />}
           </div>
