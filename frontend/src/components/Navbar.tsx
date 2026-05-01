@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Bell, LogOut, AlertCircle, Info, MessageSquare } from 'lucide-react';
+import { Search, Bell, LogOut, AlertCircle, Info, MessageSquare, User, Briefcase, Shield, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/auth';
 import { getNotifications, markNotificationAsRead, type Notification } from '../api/apiClient';
 import { connectWebSocket, subscribeToNotifications } from '../services/websocket';
@@ -174,26 +174,7 @@ const Navbar: React.FC = () => {
             </div>
           )}
           {user ? (
-            <div className="flex items-center gap-3 border-l border-slate-200 dark:border-slate-700 pl-4 ml-2">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary-500 to-purple-500 p-[2px] cursor-pointer shadow-sm">
-                <div className="w-full h-full bg-white dark:bg-slate-800 rounded-full flex items-center justify-center overflow-hidden font-bold text-primary-600 dark:text-primary-400 text-sm">
-                  {user.name.charAt(0)}
-                </div>
-              </div>
-              <div className="hidden md:block">
-                <div className="text-sm font-semibold text-slate-800 dark:text-white leading-tight">{user.name}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                  {user.role} {user.agentType && <span className="opacity-70">({user.agentType})</span>}
-                </div>
-              </div>
-              <button 
-                onClick={handleLogout}
-                className="p-2 ml-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-colors"
-                title="Logout"
-              >
-                <LogOut size={18} />
-              </button>
-            </div>
+            <ProfileMenu user={user} onLogout={handleLogout} />
           ) : (
             <div className="flex items-center gap-3 border-l border-slate-200 dark:border-slate-700 pl-4 ml-2">
               <Link to="/login" className="text-sm font-semibold text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 transition-colors">
@@ -207,6 +188,108 @@ const Navbar: React.FC = () => {
         </div>
       </div>
     </nav>
+  );
+};
+
+// ── Self Profile Menu ──────────────────────────────────────────────────────────
+
+interface ProfileMenuProps {
+  user: { id: number; name: string; username: string; role: string; agentType?: string; status?: string };
+  onLogout: () => void;
+}
+
+const ProfileMenu = ({ user, onLogout }: ProfileMenuProps) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const roleColor = user.role === 'ADMIN' ? 'text-amber-500' : user.role === 'AGENT' ? 'text-blue-500' : 'text-emerald-500';
+  const roleBg = user.role === 'ADMIN' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300' : user.role === 'AGENT' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300';
+
+  return (
+    <div className="relative flex items-center gap-3 border-l border-slate-200 dark:border-slate-700 pl-4 ml-2" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2.5 group rounded-xl px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+      >
+        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-500 to-purple-500 p-[2px] shadow-sm shrink-0">
+          <div className="w-full h-full bg-white dark:bg-slate-800 rounded-full flex items-center justify-center font-bold text-primary-600 dark:text-primary-400 text-sm">
+            {user.name.charAt(0).toUpperCase()}
+          </div>
+        </div>
+        <div className="hidden md:block text-left">
+          <div className="text-sm font-semibold text-slate-800 dark:text-white leading-tight">{user.name}</div>
+          <div className={`text-xs font-medium ${roleColor}`}>
+            {user.role}{user.agentType ? ` · ${user.agentType}` : ''}
+          </div>
+        </div>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 hidden md:block ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-150 z-50">
+          {/* Header gradient */}
+          <div className="h-16 bg-gradient-to-r from-primary-500 via-indigo-500 to-purple-500 relative">
+            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
+          </div>
+
+          {/* Avatar */}
+          <div className="px-5 pb-4 relative">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-primary-500 to-purple-500 p-[2.5px] absolute -top-7 shadow-lg">
+              <div className="w-full h-full bg-white dark:bg-slate-900 rounded-full flex items-center justify-center font-bold text-primary-600 dark:text-primary-400 text-xl">
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+            </div>
+
+            <div className="pt-10">
+              <div className="flex items-center gap-2 mb-0.5">
+                <h4 className="font-bold text-slate-900 dark:text-white text-sm">{user.name}</h4>
+                {user.role === 'ADMIN' && <Shield size={13} className="text-amber-500" />}
+              </div>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${roleBg}`}>
+                {user.role}{user.agentType ? ` · ${user.agentType}` : ''}
+              </span>
+            </div>
+
+            <div className="mt-4 space-y-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-400">
+                <User size={13} className="text-slate-400 shrink-0" />
+                <span className="font-medium">@{user.username}</span>
+              </div>
+              {user.status && (
+                <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-400">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${user.status === 'ACTIVE' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                  <span>{user.status === 'ACTIVE' ? 'Đang hoạt động' : user.status}</span>
+                </div>
+              )}
+              {user.agentType && (
+                <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-400">
+                  <Briefcase size={13} className="text-slate-400 shrink-0" />
+                  <span>{user.agentType} Agent</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="px-3 pb-3 border-t border-slate-100 dark:border-slate-800">
+            <button
+              onClick={() => { setOpen(false); onLogout(); }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 mt-2 text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
+            >
+              <LogOut size={15} />
+              Đăng xuất
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

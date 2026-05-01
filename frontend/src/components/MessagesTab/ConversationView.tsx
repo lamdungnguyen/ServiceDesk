@@ -203,32 +203,34 @@ const MessageBubble = ({ message, isSelf }: { message: DirectMessagePayload; isS
         {!isSelf && (
           <span className="text-[10px] text-slate-500 px-1">{message.senderName}</span>
         )}
-        <div className={`rounded-2xl px-3 py-2 text-sm shadow-sm ${
-          isSelf
-            ? 'bg-blue-500 text-white rounded-tr-sm'
-            : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-tl-sm border border-slate-200 dark:border-slate-700'
-        }`}>
-          {isVoice ? (
-            <audio controls src={`http://localhost:8081${message.fileUrl}`} className="h-8 max-w-[200px]" />
-          ) : isImage ? (
-            <img
-              src={`http://localhost:8081${message.fileUrl}`}
-              alt={message.fileName}
-              className="max-w-[200px] rounded-lg"
-            />
-          ) : isFile ? (
-            <a
-              href={`http://localhost:8081${message.fileUrl}`}
-              target="_blank"
-              rel="noreferrer"
-              className={`flex items-center gap-2 underline text-xs ${isSelf ? 'text-blue-100' : 'text-blue-600'}`}
-            >
-              📎 {message.fileName || 'File'}
-            </a>
-          ) : (
-            <p className="whitespace-pre-wrap break-words">{message.content}</p>
-          )}
-        </div>
+        {isImage ? (
+          <img
+            src={`http://localhost:8081${message.fileUrl}`}
+            alt={message.fileName}
+            className="max-w-[220px] rounded-2xl shadow-md"
+          />
+        ) : (
+          <div className={`rounded-2xl px-3 py-2 text-sm shadow-sm ${
+            isSelf
+              ? 'bg-blue-500 text-white rounded-tr-sm'
+              : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-tl-sm border border-slate-200 dark:border-slate-700'
+          }`}>
+            {isVoice ? (
+              <audio controls src={`http://localhost:8081${message.fileUrl}`} className="h-8 max-w-[200px]" />
+            ) : isFile ? (
+              <a
+                href={`http://localhost:8081${message.fileUrl}`}
+                target="_blank"
+                rel="noreferrer"
+                className={`flex items-center gap-2 underline text-xs ${isSelf ? 'text-blue-100' : 'text-blue-600'}`}
+              >
+                📎 {message.fileName || 'File'}
+              </a>
+            ) : (
+              <p className="whitespace-pre-wrap break-words">{message.content}</p>
+            )}
+          </div>
+        )}
         <span className="text-[10px] text-slate-400 px-1">
           {new Date(message.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
         </span>
