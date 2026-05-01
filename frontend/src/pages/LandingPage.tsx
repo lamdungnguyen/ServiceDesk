@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowRight, Users, Zap, MessageSquare, Ticket, BarChart,
   Headphones, Lock, Send, Loader2, CheckCircle2, AlertCircle,
-  ChevronDown, Star, Shield, Paperclip, X, Image as ImageIcon, FileVideo,
-  Clock, Smile, RefreshCw
+  ChevronDown, Star, Shield, Paperclip, X, Image as ImageIcon, FileVideo
 } from 'lucide-react';
 import { createTicket, getErrorMessage } from '../api/apiClient';
 import logoUrl from '../assets/logo.png';
@@ -14,12 +13,21 @@ import bgImg from '../assets/background.png';
 const LandingPage = () => {
   const [scrolled, setScrolled] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get('scrollToForm') === '1') {
+      setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    }
+  }, [searchParams]);
 
   const scrollToForm = () => {
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -29,22 +37,22 @@ const LandingPage = () => {
     <div className="min-h-screen bg-white overflow-x-hidden">
       {/* ── Navbar ───────────────────────────────────────────────── */}
       <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${scrolled ? 'bg-white/80 backdrop-blur-xl shadow-lg shadow-slate-200/50 border-b border-white/50' : 'bg-transparent'}`}>
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="w-full h-20 flex items-center justify-between" style={{ padding: '0 max(5rem, 8vw)' }}>
           <div className="flex items-center gap-3">
-            <img src={logoUrl} alt="ServiceDesk Logo" className="w-8 h-8 object-contain" />
-            <span className="text-xl font-bold text-slate-900">ServiceDesk</span>
+            <img src={logoUrl} alt="ServiceDesk Logo" className="w-15 h-15 object-contain" />
+            <span className="text-[2.5rem] font-bold text-slate-900">ServiceDesk</span>
           </div>
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-700">
+          <div className="hidden md:flex items-center gap-10 text-2xl font-medium text-slate-700">
             <a href="#features" className="hover:text-violet-600 transition-colors duration-200">Features</a>
             <a href="#" className="hover:text-violet-600 transition-colors duration-200">Pricing</a>
             <a href="#" className="hover:text-violet-600 transition-colors duration-200">About Us</a>
             <a href="#ticket-form" onClick={(e) => { e.preventDefault(); scrollToForm(); }} className="hover:text-violet-600 transition-colors duration-200">Support</a>
           </div>
-          <div className="flex items-center gap-3">
-            <Link to="/login" className="text-sm font-semibold text-slate-700 hover:text-violet-600 transition-all duration-200 px-3 py-2">
+          <div className="flex items-center gap-4">
+            <Link to="/login" className="text-2xl font-semibold text-slate-700 hover:text-violet-600 transition-all duration-200 px-4 py-2.5">
               Sign In
             </Link>
-            <button onClick={scrollToForm} className="text-sm font-semibold px-5 py-2.5 text-white rounded-full transition-all duration-300 hover:scale-105 hover:shadow-xl active:scale-95"
+            <button onClick={scrollToForm} className="text-2xl font-semibold px-7 py-3.5 text-white rounded-full transition-all duration-300 hover:scale-105 hover:shadow-xl active:scale-95"
               style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', boxShadow: '0 4px 20px -2px rgba(109,40,217,0.5)' }}
             >
               Try for Free
@@ -54,29 +62,76 @@ const LandingPage = () => {
       </nav>
 
       {/* ── Hero ─────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex flex-col justify-center overflow-hidden"
-        style={{ backgroundImage: `url(${bgImg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
-      >
-        {/* Subtle overlay for readability */}
-        <div className="absolute inset-0 bg-white/10" />
+      <section className="relative min-h-screen flex flex-col overflow-hidden">
 
-        <div className="relative z-10 max-w-7xl mx-auto w-full px-6 lg:px-12 pt-24 pb-16">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-20 items-center min-h-[calc(100vh-10rem)]">
+        {/* Fixed background layer */}
+        <div className="fixed inset-0 z-0"
+          style={{ backgroundImage: `url(${bgImg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
+        />
+        <div className="fixed inset-0 z-[1] bg-white/10" />
+        <style>{`
+          @keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-33.333%)}}
+          .btn-view-demo{
+            position:relative;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            gap:0.5rem;
+            border-radius:9999px;
+            font-weight:600;
+            color:#3b0764;
+            background:rgba(255,255,255,0.55);
+            backdrop-filter:blur(24px);
+            -webkit-backdrop-filter:blur(24px);
+            box-shadow:
+              0 4px 24px rgba(139,92,246,0.18),
+              0 1px 4px rgba(0,0,0,0.06),
+              inset 0 1.5px 0 rgba(255,255,255,0.9),
+              inset 0 -1px 0 rgba(139,92,246,0.08);
+            transition:transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+            isolation:isolate;
+          }
+          .btn-view-demo::before{
+            content:'';
+            position:absolute;
+            inset:0;
+            border-radius:9999px;
+            padding:1.5px;
+            background:linear-gradient(135deg,rgba(167,139,250,0.7),rgba(129,140,248,0.5),rgba(96,165,250,0.7));
+            -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+            -webkit-mask-composite:xor;
+            mask-composite:exclude;
+            pointer-events:none;
+          }
+          .btn-view-demo:hover{
+            transform:translateY(-2px);
+            background:rgba(255,255,255,0.72);
+            box-shadow:
+              0 8px 32px rgba(139,92,246,0.28),
+              0 0 0 4px rgba(139,92,246,0.07),
+              inset 0 1.5px 0 rgba(255,255,255,1),
+              inset 0 -1px 0 rgba(139,92,246,0.12);
+          }
+          .btn-view-demo:active{transform:translateY(0) scale(0.97);}
+        `}</style>
+
+        <div className="relative z-10 flex-1 flex flex-col w-full" style={{ paddingTop: '14rem', paddingBottom: 0 }}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-start" style={{ padding: '0 max(3.5rem, 6vw)' }}>
 
             {/* Left column */}
-            <div className="flex flex-col justify-center">
-              {/* Pill badge — liquid glass */}
-              <div className="inline-flex w-fit items-center gap-1.5 px-4 py-2 rounded-full mb-6 backdrop-blur-md transition-all duration-300 hover:scale-105 hover:shadow-md"
+            <div className="flex flex-col justify-center" style={{ gap: 'clamp(0.7rem, 1.4vw, 1.3rem)' }}>
+              {/* Pill badge */}
+              <div className="inline-flex w-fit items-center gap-2.5 px-6 py-2.5 rounded-full backdrop-blur-md transition-all duration-300 hover:scale-105 hover:shadow-md"
                 style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
               >
-                <Zap size={12} className="text-violet-600 fill-violet-500" />
-                <span className="text-[11px] font-bold tracking-widest uppercase text-violet-700">
+                <Zap size={18} className="text-violet-600 fill-violet-500" />
+                <span className="text-sm font-bold tracking-widest uppercase text-violet-700">
                   Leading Service Management Platform
                 </span>
               </div>
 
               {/* Headline */}
-              <h1 className="font-extrabold tracking-tight leading-[1.12] mb-4" style={{ fontSize: 'clamp(2.4rem, 5.5vw, 4rem)' }}>
+              <h1 className="font-extrabold tracking-tight leading-[1.1]" style={{ fontSize: 'clamp(3.2rem, 6.8vw, 5.5rem)' }}>
                 <span className="text-gray-900">Customer Service</span>
                 <br />
                 <span className="text-transparent bg-clip-text"
@@ -87,65 +142,74 @@ const LandingPage = () => {
               </h1>
 
               {/* Sub-headline */}
-              <p className="text-xl md:text-2xl font-bold text-transparent bg-clip-text mb-5"
-                style={{ backgroundImage: 'linear-gradient(90deg, #7c3aed, #a855f7)' }}>
+              <p className="font-bold text-transparent bg-clip-text"
+                style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.75rem)', backgroundImage: 'linear-gradient(90deg, #7c3aed, #a855f7)' }}>
                 Automated. Smart. Fast.
               </p>
 
               {/* Description */}
-              <p className="text-slate-600 leading-relaxed max-w-lg mb-8" style={{ fontSize: '0.95rem' }}>
+              <p className="text-slate-600 leading-relaxed font-medium" style={{ fontSize: 'clamp(0.95rem, 1.4vw, 1.2rem)' }}>
                 ServiceDesk applies ITIL best practices to ticket management, automates workflows,
                 and integrates real-time chat with performance analytics — all in a single platform.
               </p>
 
-              {/* Compact stats row — liquid glass cards */}
-              <div className="flex flex-wrap gap-4 mb-8">
+              {/* Stats row */}
+              <div style={{ display: 'flex', gap: '1rem' }}>
                 {[
                   { value: '99.8%', label: 'Uptime' },
-                  { value: '24/7', label: 'Support' },
+                  { value: '24/7',  label: 'Support' },
                   { value: 'ISO 27001', label: 'Certified' },
                 ].map((s) => (
                   <div key={s.label}
-                    className="flex flex-col items-center justify-center px-5 py-3 rounded-xl backdrop-blur-md border border-white/60 shadow-sm min-w-[105px] transition-all duration-300 hover:scale-105 hover:shadow-lg hover:border-violet-200"
-                    style={{ background: 'rgba(255,255,255,0.5)' }}
+                    className="flex flex-col items-center justify-center rounded-xl backdrop-blur-md border transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                    style={{
+                      background: 'linear-gradient(135deg, #ede9fe 0%, #e0e7ff 50%, #fae8ff 100%)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      borderColor: 'rgba(139,92,246,0.2)',
+                      padding: '0.9rem 1.8rem',
+                      minWidth: '180px',
+                      minHeight: '108px',
+                      boxShadow: '0 4px 20px rgba(139,92,246,0.08)',
+                    }}
                   >
-                    <span className="text-lg md:text-xl font-extrabold text-transparent bg-clip-text"
-                      style={{ backgroundImage: 'linear-gradient(135deg, #7c3aed, #6366f1)' }}>
+                    <span className="font-extrabold text-transparent bg-clip-text"
+                      style={{ fontSize: 'clamp(1.56rem, 2.64vw, 2.04rem)', backgroundImage: 'linear-gradient(135deg, #7c3aed, #6366f1)' }}>
                       {s.value}
                     </span>
-                    <span className="text-xs text-slate-600 font-medium">{s.label}</span>
+                    <span className="text-slate-500 font-medium mt-0.5" style={{ fontSize: '1.1rem' }}>{s.label}</span>
                   </div>
                 ))}
               </div>
 
-              {/* CTA — white glass + purple gradient */}
-              <div className="flex flex-col sm:flex-row gap-3">
+              {/* CTA buttons */}
+              <div className="flex flex-col sm:flex-row" style={{ gap: 'clamp(0.7rem, 1.4vw, 1.1rem)', paddingTop: 'clamp(0.25rem, 0.5vw, 0.6rem)' }}>
                 <button
                   onClick={scrollToForm}
-                  className="group relative inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-bold text-slate-800 text-sm backdrop-blur-md border border-white/60 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:bg-white/90 active:scale-95"
-                  style={{ background: 'rgba(255,255,255,0.7)', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}
+                  className="group relative inline-flex items-center justify-center gap-2 rounded-full font-bold text-slate-800 backdrop-blur-md border border-white/60 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:bg-white/90 active:scale-95"
+                  style={{ fontSize: 'clamp(1rem, 1.5vw, 1.3rem)', padding: 'clamp(0.9rem, 1.5vw, 1.3rem) clamp(2.2rem, 3.5vw, 3.2rem)', background: 'rgba(255,255,255,0.7)', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}
                 >
                   Try for Free
-                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform duration-300" />
+                  <ArrowRight size={22} className="group-hover:translate-x-1 transition-transform duration-300" />
                 </button>
 
                 <Link
-                  to="/staff/login"
-                  className="group relative inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-bold text-white text-sm transition-all duration-300 hover:scale-105 hover:shadow-xl active:scale-95"
-                  style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)', boxShadow: '0 8px 24px -4px rgba(109,40,217,0.45)' }}
+                  to="/demo"
+                  className="btn-view-demo group"
+                  style={{ fontSize: 'clamp(1rem, 1.5vw, 1.3rem)', padding: 'clamp(0.9rem, 1.5vw, 1.3rem) clamp(2.2rem, 3.5vw, 3.2rem)' }}
                 >
-                  Staff Portal
-                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform duration-300" />
+                  View Demo
+                  <ArrowRight size={22} className="group-hover:translate-x-1 transition-transform duration-300" />
                 </Link>
               </div>
             </div>
 
-            {/* Right column — laptop mockup (larger) */}
-            <div className="relative flex items-center justify-center lg:justify-end">
-              <div className="absolute inset-0 m-auto"
+            {/* Right column — laptop mockup */}
+            <div className="relative flex items-center justify-center" style={{ paddingLeft: '0rem', marginTop: '-10rem', marginRight: '-10rem' }}>
+              <div className="absolute"
                 style={{
-                  width: '100%', height: '100%',
-                  background: 'radial-gradient(ellipse at center, rgba(139,92,246,0.18) 0%, rgba(99,102,241,0.08) 50%, transparent 70%)',
+                  width: '120%', height: '120%',
+                  background: 'radial-gradient(ellipse at center, rgba(139,92,246,0.2) 0%, rgba(99,102,241,0.1) 50%, transparent 70%)',
                   borderRadius: '50%',
                 }}
               />
@@ -153,10 +217,52 @@ const LandingPage = () => {
                 src={laptopMockup}
                 alt="ServiceDesk Dashboard"
                 className="relative z-10 w-full select-none drop-shadow-2xl transition-all duration-500 hover:scale-[1.02]"
-                style={{ maxWidth: '640px' }}
+                style={{ maxWidth: 'min(65vw, 1100px)' }}
                 draggable={false}
                 loading="lazy"
               />
+            </div>
+          </div>
+
+          {/* Trusted by — Zendesk-style inline: label left + logos scroll right */}
+          <div style={{ padding: '0.5rem max(3.5rem, 6vw) 3rem', marginTop: '-3rem' }}>
+            <div className="flex items-center gap-0 overflow-hidden">
+              {/* Fixed label */}
+              <div className="flex-shrink-0 pr-6 mr-2 border-r border-slate-400/30">
+                <p className="font-extrabold uppercase whitespace-nowrap leading-tight"
+                  style={{ color: '#111827', fontSize: '1rem', letterSpacing: '0.06em' }}>
+                  Trusted by<br />100+ companies
+                </p>
+              </div>
+              {/* Scrolling logos — overflow clipped by parent */}
+              <div className="flex-1 overflow-hidden relative">
+                <div className="absolute right-0 top-0 bottom-0 w-20 z-10 pointer-events-none"
+                  style={{ background: 'linear-gradient(to left, rgba(222,212,255,0.8), transparent)' }}
+                />
+                <div className="flex items-center"
+                  style={{ animation: 'marquee 22s linear infinite', width: 'max-content', willChange: 'transform' }}
+                >
+                  {((): { src: string; alt: string }[] => {
+                    const logos = [
+                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/Liberty_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Liberty' },
+                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/Squarespace_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Squarespace' },
+                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/StanleyBlackDecker_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Stanley Black & Decker' },
+                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/Tesco_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Tesco' },
+                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/Lush_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Lush' },
+                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/IngramMicro_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Ingram Micro' },
+                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/Grubhub_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'GrubHub' },
+                    ];
+                    return [...logos, ...logos, ...logos];
+                  })().map((logo, i) => (
+                    <div key={i} className="flex items-center justify-center px-7">
+                      <img src={logo.src} alt={logo.alt}
+                        className="h-14 w-auto object-contain opacity-65 hover:opacity-100 transition-all duration-300"
+                        draggable={false}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -164,34 +270,13 @@ const LandingPage = () => {
         {/* Scroll cue */}
         <button
           onClick={scrollToForm}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-violet-400/60 hover:text-violet-500 transition-all duration-300 animate-bounce z-10 hover:scale-110"
+          className="absolute bottom-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-violet-400/70 hover:text-violet-500 transition-all duration-300 animate-bounce z-10 hover:scale-110"
         >
-          <ChevronDown size={20} />
+          <ChevronDown size={50} />
         </button>
       </section>
 
-      {/* ── Stats ───────────────────────────────────────────────── */}
-      <section className="py-12 px-6 bg-white">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-5">
-          {STATS.map((s) => (
-            <div key={s.label}
-              className="group bg-white rounded-3xl p-6 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.08)] border border-slate-100 hover:-translate-y-1 hover:shadow-xl hover:border-violet-200 transition-all duration-300"
-            >
-              <div className={`w-10 h-10 rounded-xl ${s.iconBg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                <s.icon size={20} className={s.iconColor} />
-              </div>
-              <div className="text-3xl md:text-4xl font-extrabold mb-1"
-                style={{ background: 'linear-gradient(90deg, #7c3aed, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
-              >
-                {s.val}
-              </div>
-              <div className="text-sm text-slate-500 font-medium">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Features ─────────────────────────────────────────────── */}
+      {/* ── Features ─────────────────────────────────────────── */}
       <section id="features" className="py-24 px-4 bg-slate-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-14">
@@ -205,12 +290,12 @@ const LandingPage = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map((f, i) => (
-              <div key={i} className="group relative bg-white rounded-2xl p-7 border border-slate-200 hover:border-indigo-300 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1">
-                <div className={`w-12 h-12 rounded-xl ${f.bg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
-                  <f.icon size={24} className={f.color} />
+              <div key={i} className="group relative bg-white rounded-2xl p-8 border border-slate-200 hover:border-indigo-300 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1">
+                <div className={`w-14 h-14 rounded-xl ${f.bg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
+                  <f.icon size={28} className={f.color} />
                 </div>
-                <h3 className="text-base font-bold text-slate-900 mb-2">{f.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{f.desc}</p>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">{f.title}</h3>
+                <p className="text-base text-slate-500 leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -227,11 +312,11 @@ const LandingPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {STEPS.map((s, i) => (
               <div key={i} className="group relative flex flex-col items-center text-center p-8 bg-slate-50 rounded-2xl border border-slate-100 hover:border-violet-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center text-xl font-black shadow-lg shadow-indigo-500/30 mb-5 group-hover:scale-110 transition-transform duration-300">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center text-2xl font-black shadow-lg shadow-indigo-500/30 mb-5 group-hover:scale-110 transition-transform duration-300">
                   {i + 1}
                 </div>
-                <h3 className="font-bold text-slate-900 mb-2">{s.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{s.desc}</p>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">{s.title}</h3>
+                <p className="text-base text-slate-500 leading-relaxed">{s.desc}</p>
                 {i < STEPS.length - 1 && (
                   <div className="hidden md:block absolute -right-3 top-14 w-6 h-6 text-slate-300">
                     <ArrowRight size={20} />
@@ -260,30 +345,71 @@ const LandingPage = () => {
       </section>
 
       {/* ── Testimonials ─────────────────────────────────────────── */}
-      <section className="py-20 px-4 bg-white">
-        <div className="max-w-5xl mx-auto">
+      <section className="relative py-24 px-4 overflow-hidden">
+        {/* Pastel gradient background */}
+        <div className="absolute inset-0 -z-10"
+          style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 35%, #e0f2fe 70%, #f0f9ff 100%)' }}
+        />
+        <div className="absolute top-10 left-1/4 w-[28rem] h-[28rem] rounded-full -z-10 blur-3xl opacity-50"
+          style={{ background: 'radial-gradient(circle, #c4b5fd, transparent)' }}
+        />
+        <div className="absolute bottom-10 right-1/4 w-96 h-96 rounded-full -z-10 blur-3xl opacity-35"
+          style={{ background: 'radial-gradient(circle, #bae6fd, transparent)' }}
+        />
+
+        <div className="max-w-6xl mx-auto">
+          {/* Title */}
           <div className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Testimonials</p>
-            <h2 className="text-3xl font-bold text-slate-900">What our customers say</h2>
+            <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-3">
+              Loved by{' '}
+              <span className="text-transparent bg-clip-text"
+                style={{ backgroundImage: 'linear-gradient(90deg, #7c3aed, #6366f1, #a855f7)' }}>
+                Teams
+              </span>
+            </h2>
+            <p className="text-slate-500 max-w-md mx-auto text-base">
+              Join thousands of support teams who trust ServiceDesk to deliver exceptional customer experiences.
+            </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+          {/* Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
             {TESTIMONIALS.map((t, i) => (
-              <div key={i} className="group bg-slate-50 rounded-2xl p-6 border border-slate-100 hover:border-violet-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                <div className="flex gap-1 mb-4">
-                  {Array.from({ length: 5 }).map((_, j) => (
-                    <Star key={j} size={14} className="fill-amber-400 text-amber-400" />
-                  ))}
-                </div>
-                <p className="text-sm text-slate-600 leading-relaxed mb-4">"{t.text}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center text-white text-xs font-bold group-hover:scale-110 transition-transform duration-300">
-                    {t.name.charAt(0)}
+              <div key={i}
+                className="group relative rounded-3xl p-7 border border-white/70 backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
+                style={{ background: 'rgba(255,255,255,0.55)', boxShadow: '0 8px 32px rgba(139,92,246,0.10)', backdropFilter: 'blur(16px)' }}
+              >
+                {/* Hover glow */}
+                <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                  style={{ background: 'radial-gradient(ellipse at top left, rgba(139,92,246,0.13), transparent 65%)' }}
+                />
+
+                {/* Avatar + name row */}
+                <div className="flex items-center gap-4 mb-5">
+                  <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-md group-hover:scale-110 transition-transform duration-300 select-none"
+                    style={{ background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', boxShadow: '0 4px 14px rgba(139,92,246,0.25)' }}
+                  >
+                    {t.avatar}
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-slate-700">{t.name}</div>
-                    <div className="text-xs text-slate-400">{t.role}</div>
+                    <div className="font-bold text-slate-800 text-sm">{t.name}</div>
+                    <div className="text-xs text-slate-400 mt-0.5">{t.role}</div>
                   </div>
                 </div>
+
+                {/* Glowing stars */}
+                <div className="flex gap-1 mb-4">
+                  {Array.from({ length: 5 }).map((_, j) => (
+                    <Star key={j} size={15}
+                      className="fill-amber-400 text-amber-400"
+                      style={{ filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.75))' }}
+                    />
+                  ))}
+                </div>
+
+                {/* Quote */}
+                <p className="text-slate-600 leading-relaxed text-sm">"{t.text}"</p>
               </div>
             ))}
           </div>
@@ -309,13 +435,13 @@ const LandingPage = () => {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <button
                   onClick={scrollToForm}
-                  className="flex items-center gap-2 px-8 py-3.5 bg-white text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg"
+                  className="flex items-center gap-2 px-10 py-4 bg-white text-indigo-600 rounded-xl font-bold text-base hover:bg-indigo-50 hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg"
                 >
                   Get Started Now
-                  <ArrowRight size={18} />
+                  <ArrowRight size={20} />
                 </button>
-                <Link to="/staff/login" className="px-8 py-3.5 border-2 border-white/30 text-white rounded-xl font-bold hover:bg-white/10 hover:scale-105 active:scale-95 transition-all duration-300">
-                  Staff Login
+                <Link to="/demo" className="px-10 py-4 border-2 border-white/30 text-white rounded-xl font-bold text-base hover:bg-white/10 hover:scale-105 active:scale-95 transition-all duration-300">
+                  View Demo
                 </Link>
               </div>
             </div>
@@ -421,7 +547,7 @@ const TicketForm = () => {
         <p className="text-slate-500 mb-6 text-sm">Our support team will contact you via email as soon as possible.</p>
         <button
           onClick={() => { setSuccess(false); setTitle(''); setDescription(''); setName(''); setEmail(''); setFiles([]); }}
-          className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 hover:scale-105 active:scale-95 text-white rounded-xl text-sm font-semibold transition-all duration-300"
+          className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 hover:scale-105 active:scale-95 text-white rounded-xl text-base font-semibold transition-all duration-300"
         >
           Submit Another Request
         </button>
@@ -511,9 +637,9 @@ const TicketForm = () => {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none text-white rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-indigo-500/20"
+          className="w-full flex items-center justify-center gap-2.5 py-4 bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none text-white rounded-xl text-base font-semibold transition-all duration-300 shadow-lg shadow-indigo-500/20"
         >
-          {isSubmitting ? <><Loader2 size={18} className="animate-spin" /> Submitting...</> : <><Send size={18} /> Submit Request</>}
+          {isSubmitting ? <><Loader2 size={20} className="animate-spin" /> Submitting...</> : <><Send size={20} /> Submit Request</>}
         </button>
 
         <p className="text-center text-xs text-slate-400">By submitting, you agree to our Privacy Policy.</p>
@@ -523,13 +649,6 @@ const TicketForm = () => {
 };
 
 // ── Static data ────────────────────────────────────────────────────────────────
-
-const STATS = [
-  { val: '10K+',    label: 'Tickets Resolved',      icon: Ticket,    iconBg: 'bg-violet-100',  iconColor: 'text-violet-600' },
-  { val: '< 5 min', label: 'Response Time',          icon: Clock,     iconBg: 'bg-indigo-100',  iconColor: 'text-indigo-600' },
-  { val: '99%',     label: 'Satisfaction Rate',      icon: Smile,     iconBg: 'bg-amber-100',   iconColor: 'text-amber-500' },
-  { val: '24/7',    label: 'Continuous Support',     icon: RefreshCw, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600' },
-];
 
 const FEATURES = [
   { icon: Ticket, title: 'AI-Powered Ticket Management', desc: 'Create, track, and auto-classify tickets with AI that prioritizes critical issues.', bg: 'bg-blue-100', color: 'text-blue-600' },
@@ -547,9 +666,9 @@ const STEPS = [
 ];
 
 const TESTIMONIALS = [
-  { text: 'ServiceDesk helped our IT team reduce ticket handling time by 60% thanks to automatic classification.', name: 'Anna Lee', role: 'IT Manager · FPT Software' },
-  { text: 'Beautiful and easy-to-use interface. Our customers are very satisfied with the response speed.', name: 'Mark Chen', role: 'Support Lead · Viettel' },
-  { text: 'The internal chat feature helps our agent team coordinate much faster than email.', name: 'Sarah Kim', role: 'Head of Support · VinGroup' },
+  { text: 'ServiceDesk helped our IT team reduce ticket handling time by 60% thanks to automatic classification.', name: 'Anna Lee', role: 'IT Manager · FPT Software', avatar: '👩‍💼' },
+  { text: 'Beautiful and easy-to-use interface. Our customers are very satisfied with the response speed.', name: 'Mark Chen', role: 'Support Lead · Viettel', avatar: '👨‍💻' },
+  { text: 'The internal chat feature helps our agent team coordinate much faster than email.', name: 'Sarah Kim', role: 'Head of Support · VinGroup', avatar: '👩‍🔬' },
 ];
 
 export default LandingPage;

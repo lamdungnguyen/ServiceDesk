@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import StaffLogin from './pages/StaffLogin';
 import CustomerPortal from './pages/CustomerPortal';
 import LandingPage from './pages/LandingPage';
+import Demo from './pages/Demo';
 import MyTickets from './pages/MyTickets';
 import Notifications from './pages/Notifications';
 import { AuthProvider } from './context/AuthContext';
@@ -24,6 +25,7 @@ const AppRoutes = () => {
       {!isLanding && <Navbar />}
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/demo" element={<Demo />} />
         <Route path="/customer-portal" element={<CustomerPortal />} />
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/my-tickets" />} />
         <Route path="/staff/login" element={!user ? <StaffLogin /> : <Navigate to={user.role === 'ADMIN' ? '/admin/dashboard' : '/staff/dashboard'} />} />
