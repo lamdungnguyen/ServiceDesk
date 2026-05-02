@@ -1,14 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  ArrowRight, Users, Zap, MessageSquare, Ticket, BarChart,
-  Headphones, Lock, Send, Loader2, CheckCircle2, AlertCircle,
-  ChevronDown, Star, Shield, Paperclip, X, Image as ImageIcon, FileVideo
+  ArrowRight, Zap, Send, Loader2, CheckCircle2, AlertCircle,
+  ChevronDown, Star, Paperclip, X, Image as ImageIcon, FileVideo
 } from 'lucide-react';
 import { createTicket, getErrorMessage } from '../api/apiClient';
 import logoUrl from '../assets/logo.png';
 import laptopMockup from '../assets/LaptopandRobot.png';
 import bgImg from '../assets/background.png';
+import aiImg from '../assets/LandingPage/AI.png';
+import analyticsImg from '../assets/LandingPage/Analytics.png';
+import multiChanelImg from '../assets/LandingPage/MultiChanel.png';
+import realtimeImg from '../assets/LandingPage/Realtime.png';
+import securityImg from '../assets/LandingPage/Security.png';
+import userManaImg from '../assets/LandingPage/User Mana.png';
 
 const LandingPage = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -79,15 +84,15 @@ const LandingPage = () => {
             gap:0.5rem;
             border-radius:9999px;
             font-weight:600;
-            color:#3b0764;
-            background:rgba(255,255,255,0.55);
+            color:#ffffff;
+            background:#7c3aed;
             backdrop-filter:blur(24px);
             -webkit-backdrop-filter:blur(24px);
             box-shadow:
               0 4px 24px rgba(139,92,246,0.18),
               0 1px 4px rgba(0,0,0,0.06),
-              inset 0 1.5px 0 rgba(255,255,255,0.9),
-              inset 0 -1px 0 rgba(139,92,246,0.08);
+              inset 0 1.5px 0 rgba(255,255,255,0.25),
+              inset 0 -1px 0 rgba(0,0,0,0.1);
             transition:transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
             isolation:isolate;
           }
@@ -105,12 +110,12 @@ const LandingPage = () => {
           }
           .btn-view-demo:hover{
             transform:translateY(-2px);
-            background:rgba(255,255,255,0.72);
+            background:#8b5cf6;
             box-shadow:
               0 8px 32px rgba(139,92,246,0.28),
               0 0 0 4px rgba(139,92,246,0.07),
-              inset 0 1.5px 0 rgba(255,255,255,1),
-              inset 0 -1px 0 rgba(139,92,246,0.12);
+              inset 0 1.5px 0 rgba(255,255,255,0.2),
+              inset 0 -1px 0 rgba(0,0,0,0.12);
           }
           .btn-view-demo:active{transform:translateY(0) scale(0.97);}
         `}</style>
@@ -202,6 +207,46 @@ const LandingPage = () => {
                   <ArrowRight size={22} className="group-hover:translate-x-1 transition-transform duration-300" />
                 </Link>
               </div>
+
+              {/* Trusted by — moved inside left column so it always sits below the buttons */}
+              <div style={{ marginTop: 'clamp(3rem, 4.5vw, 4rem)', marginRight: '-8vw' }}>
+                <div className="flex items-center gap-0 overflow-hidden">
+                  <div className="flex-shrink-0 pr-6 mr-2 border-r border-slate-400/30">
+                    <p className="font-extrabold uppercase whitespace-nowrap leading-tight"
+                      style={{ color: '#111827', fontSize: '1rem', letterSpacing: '0.06em' }}>
+                      Trusted by<br />100+ companies
+                    </p>
+                  </div>
+                  <div className="flex-1 overflow-hidden relative">
+                    <div className="absolute right-0 top-0 bottom-0 w-20 z-10 pointer-events-none"
+                      style={{ background: 'linear-gradient(to left, rgba(222,212,255,0.8), transparent)' }}
+                    />
+                    <div className="flex items-center"
+                      style={{ animation: 'marquee 22s linear infinite', width: 'max-content', willChange: 'transform' }}
+                    >
+                      {((): { src: string; alt: string }[] => {
+                        const logos = [
+                          { src: 'https://web-assets.zendesk.com/is/image/zendesk/Liberty_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Liberty' },
+                          { src: 'https://web-assets.zendesk.com/is/image/zendesk/Squarespace_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Squarespace' },
+                          { src: 'https://web-assets.zendesk.com/is/image/zendesk/StanleyBlackDecker_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Stanley Black & Decker' },
+                          { src: 'https://web-assets.zendesk.com/is/image/zendesk/Tesco_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Tesco' },
+                          { src: 'https://web-assets.zendesk.com/is/image/zendesk/Lush_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Lush' },
+                          { src: 'https://web-assets.zendesk.com/is/image/zendesk/IngramMicro_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Ingram Micro' },
+                          { src: 'https://web-assets.zendesk.com/is/image/zendesk/Grubhub_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'GrubHub' },
+                        ];
+                        return [...logos, ...logos, ...logos];
+                      })().map((logo, i) => (
+                        <div key={i} className="flex items-center justify-center px-7">
+                          <img src={logo.src} alt={logo.alt}
+                            className="h-14 w-auto object-contain opacity-65 hover:opacity-100 transition-all duration-300"
+                            draggable={false}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Right column — laptop mockup */}
@@ -224,47 +269,6 @@ const LandingPage = () => {
             </div>
           </div>
 
-          {/* Trusted by — Zendesk-style inline: label left + logos scroll right */}
-          <div style={{ padding: '0.5rem max(3.5rem, 6vw) 3rem', marginTop: '-3rem' }}>
-            <div className="flex items-center gap-0 overflow-hidden">
-              {/* Fixed label */}
-              <div className="flex-shrink-0 pr-6 mr-2 border-r border-slate-400/30">
-                <p className="font-extrabold uppercase whitespace-nowrap leading-tight"
-                  style={{ color: '#111827', fontSize: '1rem', letterSpacing: '0.06em' }}>
-                  Trusted by<br />100+ companies
-                </p>
-              </div>
-              {/* Scrolling logos — overflow clipped by parent */}
-              <div className="flex-1 overflow-hidden relative">
-                <div className="absolute right-0 top-0 bottom-0 w-20 z-10 pointer-events-none"
-                  style={{ background: 'linear-gradient(to left, rgba(222,212,255,0.8), transparent)' }}
-                />
-                <div className="flex items-center"
-                  style={{ animation: 'marquee 22s linear infinite', width: 'max-content', willChange: 'transform' }}
-                >
-                  {((): { src: string; alt: string }[] => {
-                    const logos = [
-                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/Liberty_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Liberty' },
-                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/Squarespace_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Squarespace' },
-                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/StanleyBlackDecker_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Stanley Black & Decker' },
-                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/Tesco_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Tesco' },
-                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/Lush_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Lush' },
-                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/IngramMicro_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'Ingram Micro' },
-                      { src: 'https://web-assets.zendesk.com/is/image/zendesk/Grubhub_Default?$primary=%2311110D&$secondary=%235d5d59&$tertiary=%23777773&fmt=webp-alpha&qlt=65&scale=2', alt: 'GrubHub' },
-                    ];
-                    return [...logos, ...logos, ...logos];
-                  })().map((logo, i) => (
-                    <div key={i} className="flex items-center justify-center px-7">
-                      <img src={logo.src} alt={logo.alt}
-                        className="h-14 w-auto object-contain opacity-65 hover:opacity-100 transition-all duration-300"
-                        draggable={false}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Scroll cue */}
@@ -277,49 +281,81 @@ const LandingPage = () => {
       </section>
 
       {/* ── Features ─────────────────────────────────────────── */}
-      <section id="features" className="py-24 px-4 bg-slate-50">
+      <section id="features" className="relative z-[2] py-24 px-4 bg-white/30">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Features</p>
-            <h2 className="text-3xl md:text-5xl font-bold text-slate-900 mb-4">
-              Everything you need, in one place
+          <div className="text-center mb-16">
+            <p className="text-sm font-bold uppercase tracking-[0.25em] text-violet-500 mb-4">Why Choose Us</p>
+            <h2 className="text-5xl md:text-7xl font-black text-slate-900 mb-5 tracking-tight">
+              Powerful{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-indigo-500 to-purple-600">Features</span>
             </h2>
-            <p className="text-slate-500 max-w-xl mx-auto">
-              From ticket management to performance analytics — ServiceDesk integrates your entire support workflow.
-            </p>
+            <p className="text-slate-600 max-w-2xl mx-auto text-lg leading-relaxed font-medium">A complete platform to streamline ticket handling, automate workflows, and deliver exceptional customer experiences.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10 mt-24">
             {FEATURES.map((f, i) => (
-              <div key={i} className="group relative bg-white rounded-2xl p-8 border border-slate-200 hover:border-indigo-300 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1">
-                <div className={`w-14 h-14 rounded-xl ${f.bg} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
-                  <f.icon size={28} className={f.color} />
+              <div key={i} className="group relative bg-gradient-to-b from-white to-slate-50 rounded-2xl border-2 border-slate-300 p-6 pr-4 transition-all duration-300 hover:-translate-y-2 hover:border-violet-400 overflow-visible" style={{ boxShadow: '0 6px 32px rgba(0,0,0,0.07), 0 2px 6px rgba(0,0,0,0.04), inset 0 2px 0 white' }}>
+                {/* Text area - 2/3 width */}
+                <div className="w-2/3">
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">{f.title}</h3>
+                  <p className="text-base text-slate-500 leading-relaxed">{f.desc}</p>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">{f.title}</h3>
-                <p className="text-base text-slate-500 leading-relaxed">{f.desc}</p>
+                {/* Asset image - positioned top-right, half in half out */}
+                <div className={`absolute flex items-center justify-center z-20 ${f.large ? '-top-79 -right-50 w-[38rem] h-[38rem]' : '-top-36 -right-20 w-72 h-72'}`}>
+                  <img src={f.img} alt={f.title} className="max-w-full max-h-full object-contain group-hover:scale-110 group-hover:-translate-y-1 transition-transform duration-300 drop-shadow-lg" />
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── How It Works ─────────────────────────────────────────── */}
-      <section id="how-it-works" className="py-24 px-4 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Process</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Simple 3-step process</h2>
+      {/* ── How It Works / Process ────────────────────────────────── */}
+      <section id="how-it-works" className="relative z-[2] py-24 px-4 bg-white/30">
+        <div className="max-w-6xl mx-auto">
+          {/* Section header */}
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-violet-100/80 border-2 border-violet-200 mb-6 shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-violet-600 animate-pulse" />
+              <span className="text-sm font-black uppercase tracking-[0.25em] text-violet-700">Process</span>
+            </div>
+            <h2 className="text-5xl md:text-6xl font-black text-slate-900 mb-5 tracking-tight leading-tight">
+              Simple{' '}
+              <span className="relative inline-block">
+                <span className="absolute inset-0 bg-gradient-to-r from-violet-600 to-indigo-600 blur-2xl opacity-30 rounded-full" />
+                <span className="relative text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-indigo-600">3-step</span>
+              </span>
+              {' '}process
+            </h2>
+            <p className="text-slate-600 max-w-xl mx-auto text-lg font-medium leading-relaxed">
+              Get started in minutes. Our streamlined workflow makes support effortless.
+            </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+          {/* Steps */}
+          <div className="relative grid grid-cols-1 md:grid-cols-3 gap-0">
             {STEPS.map((s, i) => (
-              <div key={i} className="group relative flex flex-col items-center text-center p-8 bg-slate-50 rounded-2xl border border-slate-100 hover:border-violet-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center text-2xl font-black shadow-lg shadow-indigo-500/30 mb-5 group-hover:scale-110 transition-transform duration-300">
-                  {i + 1}
+              <div key={i} className="relative flex flex-col items-center text-center px-6 py-8 group">
+                {/* Step number circle */}
+                <div className="relative z-10 w-24 h-24 rounded-full bg-gradient-to-br from-violet-500 via-indigo-500 to-purple-600 text-white flex items-center justify-center text-4xl font-black mb-7 shadow-xl shadow-violet-500/40 ring-[6px] ring-white/80 transition-all duration-300 group-hover:scale-110 group-hover:shadow-2xl group-hover:shadow-violet-500/50">
+                  {/* Inner glow */}
+                  <div className="absolute inset-2 rounded-full bg-white/10" />
+                  <span className="relative z-10">{i + 1}</span>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">{s.title}</h3>
-                <p className="text-base text-slate-500 leading-relaxed">{s.desc}</p>
+
+                {/* Content card */}
+                <div className="relative w-full rounded-2xl bg-white/90 backdrop-blur-sm border-2 border-slate-200/80 p-7 shadow-lg shadow-slate-200/50 transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-xl group-hover:shadow-violet-200/40 group-hover:border-violet-300/60">
+                  <h3 className="text-2xl font-extrabold text-slate-900 mb-3">{s.title}</h3>
+                  <p className="text-base text-slate-600 leading-relaxed font-medium">{s.desc}</p>
+                </div>
+
+                {/* Connector line between steps (desktop only) */}
                 {i < STEPS.length - 1 && (
-                  <div className="hidden md:block absolute -right-3 top-14 w-6 h-6 text-slate-300">
-                    <ArrowRight size={20} />
+                  <div className="hidden md:flex absolute top-[3rem] left-[calc(50%+4rem)] w-[calc(100%-8rem)] items-center justify-center z-0">
+                    <div className="flex-1 h-[3px] rounded-full bg-gradient-to-r from-violet-300 via-violet-400 to-violet-300 relative shadow-sm">
+                      <div className="absolute -top-[5px] right-0 w-3 h-3 rounded-full bg-violet-500 shadow-md shadow-violet-400/50" />
+                      <div className="absolute top-1/2 left-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-violet-400 shadow-sm shadow-violet-400/40" />
+                      <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-2 h-2 rounded-full bg-violet-300" />
+                    </div>
                   </div>
                 )}
               </div>
@@ -329,14 +365,15 @@ const LandingPage = () => {
       </section>
 
       {/* ── Ticket Form Section ──────────────────────────────────── */}
-      <section className="py-20 px-4 bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-2xl mx-auto" ref={formRef} id="ticket-form">
+      <section className="relative z-[2] py-24 px-4 bg-gradient-to-b from-slate-50/30 to-white/30">
+        <div className="max-w-3xl mx-auto" ref={formRef} id="ticket-form">
           <div className="text-center mb-10">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Get Help Now</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">
-              Submit a Support Request
+            <p className="text-sm font-black uppercase tracking-[0.3em] text-indigo-500 mb-4">Get Help Now</p>
+            <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-4 tracking-tight">
+              Submit a{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600">Support Request</span>
             </h2>
-            <p className="text-slate-500 text-sm">
+            <p className="text-slate-500 text-base font-medium">
               No login required. Fill out the form below and we'll get back to you as soon as possible.
             </p>
           </div>
@@ -345,71 +382,115 @@ const LandingPage = () => {
       </section>
 
       {/* ── Testimonials ─────────────────────────────────────────── */}
-      <section className="relative py-24 px-4 overflow-hidden">
-        {/* Pastel gradient background */}
-        <div className="absolute inset-0 -z-10"
-          style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 35%, #e0f2fe 70%, #f0f9ff 100%)' }}
+      <section className="relative z-[2] py-24 px-4 overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #faf5ff 0%, #ede9fe 25%, #e0e7ff 50%, #e0f2fe 75%, #f0f9ff 100%)' }}
+      >
+        {/* Background glow orbs */}
+        <div className="absolute top-20 left-10 w-[35rem] h-[35rem] rounded-full -z-[1] blur-3xl opacity-40 animate-pulse"
+          style={{ background: 'radial-gradient(circle, #c4b5fd 0%, #a78bfa 30%, transparent 70%)' }}
         />
-        <div className="absolute top-10 left-1/4 w-[28rem] h-[28rem] rounded-full -z-10 blur-3xl opacity-50"
-          style={{ background: 'radial-gradient(circle, #c4b5fd, transparent)' }}
+        <div className="absolute bottom-20 right-10 w-[30rem] h-[30rem] rounded-full -z-[1] blur-3xl opacity-30"
+          style={{ background: 'radial-gradient(circle, #93c5fd 0%, #60a5fa 30%, transparent 70%)' }}
         />
-        <div className="absolute bottom-10 right-1/4 w-96 h-96 rounded-full -z-10 blur-3xl opacity-35"
-          style={{ background: 'radial-gradient(circle, #bae6fd, transparent)' }}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[25rem] h-[25rem] rounded-full -z-[1] blur-3xl opacity-20"
+          style={{ background: 'radial-gradient(circle, #f9a8d4 0%, transparent 70%)' }}
         />
 
-        <div className="max-w-6xl mx-auto">
+        {/* Running marquee animation */}
+        <style>{`
+          @keyframes testimonial-scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+          @keyframes star-glow {
+            0%, 100% { filter: drop-shadow(0 0 3px rgba(251,191,36,0.6)); }
+            50% { filter: drop-shadow(0 0 8px rgba(251,191,36,0.95)); }
+          }
+          @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+          }
+          .animate-star-glow { animation: star-glow 2s ease-in-out infinite; }
+          .animate-float { animation: float 5s ease-in-out infinite; }
+          .animate-float-delayed { animation: float 5s ease-in-out 1.6s infinite; }
+          .animate-float-slow { animation: float 6s ease-in-out 3.2s infinite; }
+          .testimonial-track { animation: testimonial-scroll 40s linear infinite; }
+          .testimonial-track:hover { animation-play-state: paused; }
+        `}</style>
+
+        <div className="max-w-full mx-auto">
           {/* Title */}
-          <div className="text-center mb-12">
-            <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-3">
+          <div className="text-center mb-14">
+            <h2 className="text-5xl md:text-6xl font-black text-slate-900 mb-5 tracking-tight">
               Loved by{' '}
-              <span className="text-transparent bg-clip-text"
-                style={{ backgroundImage: 'linear-gradient(90deg, #7c3aed, #6366f1, #a855f7)' }}>
-                Teams
+              <span className="relative inline-block">
+                <span className="absolute inset-0 bg-gradient-to-r from-violet-600 via-indigo-500 to-purple-600 blur-2xl opacity-25 rounded-full" />
+                <span className="relative text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-indigo-500 to-purple-600">Teams</span>
               </span>
             </h2>
-            <p className="text-slate-500 max-w-md mx-auto text-base">
+            <p className="text-slate-600 max-w-xl mx-auto text-lg font-medium">
               Join thousands of support teams who trust ServiceDesk to deliver exceptional customer experiences.
             </p>
           </div>
 
-          {/* Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
-            {TESTIMONIALS.map((t, i) => (
+          {/* Marquee Track - duplicates testimonials for seamless loop */}
+          <div className="testimonial-track flex gap-8" style={{ width: 'max-content' }}>
+            {[...TESTIMONIALS, ...TESTIMONIALS, ...TESTIMONIALS, ...TESTIMONIALS].map((t, i) => (
               <div key={i}
-                className="group relative rounded-3xl p-7 border border-white/70 backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
-                style={{ background: 'rgba(255,255,255,0.55)', boxShadow: '0 8px 32px rgba(139,92,246,0.10)', backdropFilter: 'blur(16px)' }}
+                className={`relative rounded-3xl p-8 border-2 border-white/80 backdrop-blur-xl flex-shrink-0 transition-all duration-300 hover:-translate-y-3 hover:shadow-2xl ${i % 3 === 0 ? 'animate-float' : i % 3 === 1 ? 'animate-float-delayed' : 'animate-float-slow'}`}
+                style={{
+                  width: '380px',
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.4) 100%)',
+                  boxShadow: '0 12px 40px rgba(139,92,246,0.08), 0 2px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8)',
+                }}
               >
-                {/* Hover glow */}
-                <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                  style={{ background: 'radial-gradient(ellipse at top left, rgba(139,92,246,0.13), transparent 65%)' }}
+                {/* Hover gradient glow */}
+                <div className="absolute inset-0 rounded-3xl opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                  style={{ background: 'radial-gradient(ellipse at top left, rgba(139,92,246,0.1), transparent 60%)' }}
                 />
 
-                {/* Avatar + name row */}
-                <div className="flex items-center gap-4 mb-5">
-                  <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-md group-hover:scale-110 transition-transform duration-300 select-none"
-                    style={{ background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', boxShadow: '0 4px 14px rgba(139,92,246,0.25)' }}
-                  >
-                    {t.avatar}
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-800 text-sm">{t.name}</div>
-                    <div className="text-xs text-slate-400 mt-0.5">{t.role}</div>
-                  </div>
-                </div>
+                {/* Top accent line */}
+                <div className="absolute top-0 left-8 right-8 h-[3px] rounded-b-full bg-gradient-to-r from-violet-400 via-indigo-400 to-purple-400 opacity-60" />
 
-                {/* Glowing stars */}
-                <div className="flex gap-1 mb-4">
-                  {Array.from({ length: 5 }).map((_, j) => (
-                    <Star key={j} size={15}
-                      className="fill-amber-400 text-amber-400"
-                      style={{ filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.75))' }}
-                    />
-                  ))}
+                {/* Avatar + name + stars row */}
+                <div className="flex items-center gap-4 mb-5">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-4xl shadow-lg transition-transform duration-300 select-none"
+                      style={{ background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 50%, #fae8ff 100%)', boxShadow: '0 6px 20px rgba(139,92,246,0.25)' }}
+                    >
+                      {t.avatar}
+                    </div>
+                    {/* Online dot */}
+                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-400 border-3 border-white shadow-sm" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-extrabold text-slate-800 text-base">{t.name}</div>
+                    <div className="text-sm text-slate-500 mt-0.5">{t.role}</div>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: 5 }).map((_, j) => (
+                      <Star key={j} size={16}
+                        className="fill-amber-400 text-amber-400 animate-star-glow"
+                        style={{ animationDelay: `${j * 0.15}s` }}
+                      />
+                    ))}
+                  </div>
                 </div>
 
                 {/* Quote */}
-                <p className="text-slate-600 leading-relaxed text-sm">"{t.text}"</p>
+                <div className="relative">
+                  <span className="absolute -top-2 -left-1 text-5xl font-serif text-violet-300/60 select-none">"</span>
+                  <p className="text-slate-700 leading-relaxed text-base font-medium pl-4">"{t.text}"</p>
+                  <span className="absolute -bottom-6 right-2 text-5xl font-serif text-violet-300/60 select-none">"</span>
+                </div>
+
+                {/* Bottom verified badge */}
+                <div className="flex items-center gap-2 mt-6 pt-4 border-t border-slate-100/80">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <CheckCircle2 size={12} className="text-emerald-600" />
+                  </div>
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Verified Review</span>
+                </div>
               </div>
             ))}
           </div>
@@ -417,7 +498,7 @@ const LandingPage = () => {
       </section>
 
       {/* ── CTA Banner ───────────────────────────────────────────── */}
-      <section className="py-20 px-4">
+      <section className="relative z-[2] py-20 px-4 bg-white/30">
         <div className="max-w-5xl mx-auto">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 p-10 md:p-16 text-center shadow-2xl shadow-indigo-500/30">
             <div className="absolute inset-0 opacity-10"
@@ -425,7 +506,7 @@ const LandingPage = () => {
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
             <div className="relative z-10">
-              <Shield size={36} className="text-white/70 mx-auto mb-6" />
+              <img src={logoUrl} alt="ServiceDesk" className="w-14 h-14 mx-auto mb-6 object-contain drop-shadow-lg" />
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 Ready to level up your support?
               </h2>
@@ -450,7 +531,7 @@ const LandingPage = () => {
       </section>
 
       {/* ── Footer ───────────────────────────────────────────────── */}
-      <footer className="bg-slate-900 pt-16 pb-8 px-4">
+      <footer className="relative z-[2] bg-slate-900/80 pt-16 pb-8 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
             <div className="md:col-span-1">
@@ -537,17 +618,20 @@ const TicketForm = () => {
     }
   };
 
+  const inputClass = "w-full px-5 py-3.5 bg-white/55 border border-white/50 rounded-xl text-base text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-violet-400/80 focus:border-violet-400/80 transition-all duration-300 backdrop-blur-md shadow-sm";
+  const labelClass = "block text-sm font-bold text-slate-700 mb-2";
+
   if (success) {
     return (
-      <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center shadow-xl hover:shadow-2xl transition-shadow duration-300">
-        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
-          <CheckCircle2 size={32} className="text-emerald-500" />
+      <div className="glass-card-light relative rounded-3xl p-14 text-center">
+        <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <CheckCircle2 size={40} className="text-emerald-500" />
         </div>
-        <h3 className="text-2xl font-bold text-slate-900 mb-2">Request Submitted!</h3>
-        <p className="text-slate-500 mb-6 text-sm">Our support team will contact you via email as soon as possible.</p>
+        <h3 className="text-3xl font-black text-slate-900 mb-3">Request Submitted!</h3>
+        <p className="text-slate-500 mb-8 text-base font-medium">Our support team will contact you via email as soon as possible.</p>
         <button
           onClick={() => { setSuccess(false); setTitle(''); setDescription(''); setName(''); setEmail(''); setFiles([]); }}
-          className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 hover:scale-105 active:scale-95 text-white rounded-xl text-base font-semibold transition-all duration-300"
+          className="btn-gradient px-10 py-3.5 text-white rounded-xl text-lg font-bold transition-all duration-300 hover:scale-105 active:scale-95"
         >
           Submit Another Request
         </button>
@@ -556,107 +640,169 @@ const TicketForm = () => {
   }
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl shadow-slate-900/10 overflow-hidden hover:shadow-indigo-500/10 transition-shadow duration-300">
-      <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500" />
-      <form onSubmit={handleSubmit} className="p-8 md:p-10 space-y-5">
-        {error && (
-          <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
-            <AlertCircle size={16} className="shrink-0" />
-            {error}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Full Name <span className="text-red-500">*</span></label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="John Doe"
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-slate-800" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Email <span className="text-red-500">*</span></label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@company.com"
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-slate-800" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Issue Title <span className="text-red-500">*</span></label>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Cannot connect to VPN"
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-slate-800" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Category</label>
-            <select value={category} onChange={e => setCategory(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-slate-800 cursor-pointer">
-              <option value="SOFTWARE">Software</option>
-              <option value="HARDWARE">Hardware</option>
-              <option value="NETWORK">Network & Connectivity</option>
-              <option value="ACCESS">Access & Authentication</option>
-              <option value="OTHER">Other</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1.5">Detailed Description <span className="text-red-500">*</span></label>
-          <textarea rows={5} value={description} onChange={e => setDescription(e.target.value)}
-            placeholder="Describe your issue, steps to reproduce, error messages if any..."
-            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-slate-800 resize-none" />
-        </div>
-
-        {/* File Upload */}
-        <div>
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-3 p-4 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all group"
-          >
-            <Paperclip size={18} className="text-slate-400 group-hover:text-indigo-500 transition-colors" />
-            <span className="text-sm text-slate-500 group-hover:text-indigo-600">
-              Attach images / videos (optional)
-            </span>
-            <input type="file" multiple accept="image/*,video/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
-          </div>
-          {files.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {files.map((f, idx) => (
-                <div key={idx} className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${f.type.startsWith('image/') ? 'bg-blue-100 text-blue-500' : 'bg-purple-100 text-purple-500'}`}>
-                    {f.type.startsWith('image/') ? <ImageIcon size={14} /> : <FileVideo size={14} />}
-                  </div>
-                  <span className="text-xs text-slate-600 truncate flex-1">{f.name}</span>
-                  <button type="button" onClick={() => setFiles(prev => prev.filter((_, i) => i !== idx))} className="text-slate-400 hover:text-red-500 transition-colors p-1">
-                    <X size={13} />
-                  </button>
-                </div>
-              ))}
+    <>
+      <style>{`
+        .glass-card-light {
+          position: relative;
+          background: rgba(255,255,255,0.50);
+          backdrop-filter: blur(32px);
+          -webkit-backdrop-filter: blur(32px);
+          box-shadow:
+            0 12px 48px rgba(139,92,246,0.12),
+            0 0 0 1px rgba(255,255,255,0.60),
+            inset 0 1px 0 rgba(255,255,255,0.55);
+        }
+        .glass-card-light::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 24px;
+          padding: 2.5px;
+          background: linear-gradient(135deg,
+            rgba(139,92,246,0.70) 0%,
+            rgba(99,102,241,0.60) 20%,
+            rgba(168,85,247,0.70) 40%,
+            rgba(59,130,246,0.60) 60%,
+            rgba(236,72,153,0.55) 80%,
+            rgba(139,92,246,0.70) 100%
+          );
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          pointer-events: none;
+        }
+        .btn-gradient {
+          position: relative;
+          background: linear-gradient(135deg, #7c3aed, #6366f1);
+          box-shadow:
+            0 4px 24px rgba(139,92,246,0.25),
+            inset 0 1.5px 0 rgba(255,255,255,0.2),
+            inset 0 -1px 0 rgba(0,0,0,0.1);
+          isolation: isolate;
+        }
+        .btn-gradient::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 12px;
+          padding: 1.5px;
+          background: linear-gradient(135deg, rgba(167,139,250,0.7), rgba(129,140,248,0.5), rgba(96,165,250,0.7));
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          pointer-events: none;
+        }
+        .btn-gradient:hover {
+          transform: translateY(-1px);
+          box-shadow:
+            0 8px 32px rgba(139,92,246,0.35),
+            inset 0 1.5px 0 rgba(255,255,255,0.15),
+            inset 0 -1px 0 rgba(0,0,0,0.12);
+        }
+        .btn-gradient:active {
+          transform: translateY(0) scale(0.97);
+        }
+      `}</style>
+      <div className="glass-card-light rounded-3xl overflow-hidden">
+        <form onSubmit={handleSubmit} className="p-10 md:p-12 space-y-6">
+          {error && (
+            <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-xl text-base text-red-600 backdrop-blur-sm font-medium">
+              <AlertCircle size={18} className="shrink-0" />
+              {error}
             </div>
           )}
-        </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full flex items-center justify-center gap-2.5 py-4 bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none text-white rounded-xl text-base font-semibold transition-all duration-300 shadow-lg shadow-indigo-500/20"
-        >
-          {isSubmitting ? <><Loader2 size={20} className="animate-spin" /> Submitting...</> : <><Send size={20} /> Submit Request</>}
-        </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className={labelClass}>Full Name <span className="text-red-500">*</span></label>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="John Doe" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Email <span className="text-red-500">*</span></label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@company.com" className={inputClass} />
+            </div>
+          </div>
 
-        <p className="text-center text-xs text-slate-400">By submitting, you agree to our Privacy Policy.</p>
-      </form>
-    </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className={labelClass}>Issue Title <span className="text-red-500">*</span></label>
+              <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Cannot connect to VPN" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Category</label>
+              <select value={category} onChange={e => setCategory(e.target.value)}
+                className={`${inputClass} cursor-pointer appearance-none`}
+                style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.25rem' }}
+              >
+                <option value="SOFTWARE">Software</option>
+                <option value="HARDWARE">Hardware</option>
+                <option value="NETWORK">Network & Connectivity</option>
+                <option value="ACCESS">Access & Authentication</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className={labelClass}>Detailed Description <span className="text-red-500">*</span></label>
+            <textarea rows={5} value={description} onChange={e => setDescription(e.target.value)}
+              placeholder="Describe your issue, steps to reproduce, error messages if any..."
+              className={`${inputClass} resize-none`} />
+          </div>
+
+          {/* File Upload */}
+          <div>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-3 p-5 border-2 border-dashed border-slate-200/80 rounded-xl cursor-pointer hover:border-violet-400 hover:bg-violet-50/40 transition-all group backdrop-blur-sm"
+            >
+              <Paperclip size={20} className="text-slate-400 group-hover:text-violet-500 transition-colors" />
+              <span className="text-base text-slate-500 group-hover:text-violet-600 font-medium">
+                Attach images / videos (optional)
+              </span>
+              <input type="file" multiple accept="image/*,video/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
+            </div>
+            {files.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {files.map((f, idx) => (
+                  <div key={idx} className="flex items-center gap-3 p-2.5 bg-white/50 rounded-lg border border-white/40 backdrop-blur-sm">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${f.type.startsWith('image/') ? 'bg-blue-100 text-blue-500' : 'bg-purple-100 text-purple-500'}`}>
+                      {f.type.startsWith('image/') ? <ImageIcon size={14} /> : <FileVideo size={14} />}
+                    </div>
+                    <span className="text-xs text-slate-600 truncate flex-1">{f.name}</span>
+                    <button type="button" onClick={() => setFiles(prev => prev.filter((_, i) => i !== idx))} className="text-slate-400 hover:text-red-500 transition-colors p-1">
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="btn-gradient w-full flex items-center justify-center gap-2.5 py-4.5 text-white rounded-xl text-lg font-bold transition-all duration-300 disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {isSubmitting ? <><Loader2 size={22} className="animate-spin" /> Submitting...</> : <><Send size={22} /> Submit Request</>}
+          </button>
+
+          <p className="text-center text-sm text-slate-400 font-medium">By submitting, you agree to our Privacy Policy.</p>
+        </form>
+      </div>
+    </>
   );
 };
 
 // ── Static data ────────────────────────────────────────────────────────────────
 
 const FEATURES = [
-  { icon: Ticket, title: 'AI-Powered Ticket Management', desc: 'Create, track, and auto-classify tickets with AI that prioritizes critical issues.', bg: 'bg-blue-100', color: 'text-blue-600' },
-  { icon: MessageSquare, title: 'Real-Time Chat', desc: 'Live chat with customers. Supports files, images, and voice messages.', bg: 'bg-emerald-100', color: 'text-emerald-600' },
-  { icon: BarChart, title: 'Analytics & Reports', desc: 'Detailed dashboards, visual charts, and team performance metrics.', bg: 'bg-violet-100', color: 'text-violet-600' },
-  { icon: Users, title: 'User Management', desc: 'Flexible RBAC for Admin, Agent, and Customer roles. Efficient team management.', bg: 'bg-orange-100', color: 'text-orange-600' },
-  { icon: Headphones, title: 'Multi-Channel Support', desc: 'Unified email, chat, and call center — never miss a request.', bg: 'bg-pink-100', color: 'text-pink-600' },
-  { icon: Lock, title: 'Enterprise Security', desc: 'End-to-end encryption. Compliant with enterprise security standards.', bg: 'bg-slate-100', color: 'text-slate-600' },
+  { img: aiImg, title: 'AI-Powered Ticket Management', desc: 'Automatically classify, prioritize, and route tickets using intelligent AI to reduce manual effort.', large: true },
+  { img: realtimeImg, title: 'Real-Time Chat', desc: 'Enable instant communication between agents and customers with live chat support.' },
+  { img: analyticsImg, title: 'Analytics & Reports', desc: 'Gain deep insights into team performance, ticket trends, and SLA compliance.' },
+  { img: userManaImg, title: 'User Management', desc: 'Manage roles, permissions, and teams effortlessly from a centralized admin panel.' },
+  { img: multiChanelImg, title: 'Multi-Channel Support', desc: 'Handle requests from email, web forms, and chat in one unified platform.' },
+  { img: securityImg, title: 'Enterprise Security', desc: 'ISO 27001 certified with role-based access control and end-to-end encryption.' },
 ];
 
 const STEPS = [
@@ -669,6 +815,12 @@ const TESTIMONIALS = [
   { text: 'ServiceDesk helped our IT team reduce ticket handling time by 60% thanks to automatic classification.', name: 'Anna Lee', role: 'IT Manager · FPT Software', avatar: '👩‍💼' },
   { text: 'Beautiful and easy-to-use interface. Our customers are very satisfied with the response speed.', name: 'Mark Chen', role: 'Support Lead · Viettel', avatar: '👨‍💻' },
   { text: 'The internal chat feature helps our agent team coordinate much faster than email.', name: 'Sarah Kim', role: 'Head of Support · VinGroup', avatar: '👩‍🔬' },
+  { text: 'AI-powered ticket classification saves us hours every day. The accuracy is impressive.', name: 'David Tran', role: 'CTO · FPT Retail', avatar: '👨‍🚀' },
+  { text: 'Onboarding was smooth and the team adapted in just one week. Highly recommended.', name: 'Lisa Nguyen', role: 'Operations Lead · MoMo', avatar: '👩‍🎨' },
+  { text: 'SLA compliance went from 72% to 98% after switching to ServiceDesk. Game changer.', name: 'James Pham', role: 'Service Manager · VNPT', avatar: '👷‍♂️' },
+  { text: 'The real-time dashboard gives us complete visibility over our support pipeline.', name: 'Emma Vo', role: 'Director · Techcombank', avatar: '👩‍💻' },
+  { text: 'Multi-channel support unified our email, chat, and phone workflows into one platform.', name: 'Ryan Hoang', role: 'Support Director · Shopee', avatar: '🧑‍💼' },
+  { text: 'Customers love the self-service portal. Ticket deflection increased by 40%.', name: 'Mai Bui', role: 'Product Manager · Tiki', avatar: '👩‍🔧' },
 ];
 
 export default LandingPage;
