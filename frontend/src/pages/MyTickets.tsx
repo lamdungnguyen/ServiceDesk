@@ -3,9 +3,10 @@ import type { Ticket as TicketType } from '../types/ticket';
 import { getTickets } from '../api/apiClient';
 import TicketCard from '../components/TicketCard';
 import CustomerTicketDetailModal from '../components/CustomerTicketDetailModal';
+import CreateTicketModal from '../components/CreateTicketModal';
 import { useAuth } from '../context/auth';
 import { RefreshCcw, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, Search } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 
 type SortField = 'title' | 'priority' | 'status' | 'createdAt';
 type SortDir = 'asc' | 'desc';
@@ -51,6 +52,7 @@ const MyTickets = () => {
   const [filterPriority, setFilterPriority] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
@@ -168,9 +170,9 @@ const MyTickets = () => {
           <button onClick={fetchTickets} className="p-2.5 text-slate-500 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm focus:ring-2 focus:ring-primary-500/20">
             <RefreshCcw size={18} className={loading ? "animate-spin" : ""} />
           </button>
-          <Link to="/" className="flex items-center gap-2 bg-gradient-to-r from-primary-600 to-indigo-600 text-white px-5 py-2.5 rounded-lg font-medium hover:from-primary-700 hover:to-indigo-700 transition-all shadow-lg shadow-primary-500/30 active:scale-95 transform">
+          <button onClick={() => setIsCreateModalOpen(true)} className="flex items-center gap-2 bg-gradient-to-r from-primary-600 to-indigo-600 text-white px-5 py-2.5 rounded-lg font-medium hover:from-primary-700 hover:to-indigo-700 transition-all shadow-lg shadow-primary-500/30 active:scale-95 transform">
             <span>Submit New Request</span>
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -395,6 +397,12 @@ const MyTickets = () => {
           onClose={() => setSelectedTicket(null)} 
         />
       )}
+
+      <CreateTicketModal 
+        isOpen={isCreateModalOpen} 
+        onClose={() => setIsCreateModalOpen(false)} 
+        onTicketCreated={fetchTickets} 
+      />
     </div>
   );
 };

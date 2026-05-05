@@ -458,7 +458,7 @@ const LandingPage = () => {
                     <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-4xl shadow-lg transition-transform duration-300 select-none"
                       style={{ background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 50%, #fae8ff 100%)', boxShadow: '0 6px 20px rgba(139,92,246,0.25)' }}
                     >
-                      {t.avatar}
+                      <img src={t.avatar} className="w-12 h-12 rounded-full object-cover" />
                     </div>
                     {/* Online dot */}
                     <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-400 border-3 border-white shadow-sm" />
@@ -812,7 +812,7 @@ const STEPS = [
 ];
 
 const TESTIMONIALS = [
-  { text: 'ServiceDesk helped our IT team reduce ticket handling time by 60% thanks to automatic classification.', name: 'Anna Lee', role: 'IT Manager · FPT Software', avatar: '👩‍💼' },
+  { text: 'ServiceDesk helped our IT team reduce ticket handling time by 60% thanks to automatic classification.', name: 'Anna Lee', role: 'IT Manager · FPT Software', avatar: 'https://cafefcdn.com/thumb_w/640/203337114487263232/2024/3/13/importedphoto1710299205516-1710299356137688721171-115-0-607-787-crop-1710299365463955534220.jpg' },
   { text: 'Beautiful and easy-to-use interface. Our customers are very satisfied with the response speed.', name: 'Mark Chen', role: 'Support Lead · Viettel', avatar: '👨‍💻' },
   { text: 'The internal chat feature helps our agent team coordinate much faster than email.', name: 'Sarah Kim', role: 'Head of Support · VinGroup', avatar: '👩‍🔬' },
   { text: 'AI-powered ticket classification saves us hours every day. The accuracy is impressive.', name: 'David Tran', role: 'CTO · FPT Retail', avatar: '👨‍🚀' },
