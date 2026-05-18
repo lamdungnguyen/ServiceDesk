@@ -14,6 +14,7 @@ export interface Ticket {
   assigneeId: number | null;
   escalated: boolean;
   resolvedAt: string | null;
+  commentCount?: number;
 }
 
 export interface TicketCreateRequest {

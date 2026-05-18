@@ -150,6 +150,7 @@ const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketV
               <th className="p-4">Priority</th>
               <th className="p-4">Reporter</th>
               <th className="p-4">Assignee</th>
+              <th className="p-4">Created Date</th>
               <th className="p-4 text-right pr-6">Actions</th>
             </tr>
           </thead>
@@ -194,6 +195,11 @@ const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketV
                   {assigningId === ticket.id && (
                     <Loader2 size={12} className="absolute right-6 top-1/2 -translate-y-1/2 animate-spin text-blue-500" />
                   )}
+                </td>
+                <td className="p-4">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    {new Date(ticket.createdAt).toLocaleDateString()}
+                  </span>
                 </td>
                 <td className="p-4 text-right pr-6">
                   <button 

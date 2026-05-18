@@ -67,7 +67,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onClick }) => {
           
           <div className="flex items-center gap-1 text-xs text-slate-400">
             <MessageSquare size={12} />
-            <span>2</span>
+            <span>{ticket.commentCount || 0}</span>
           </div>
         </div>
 
