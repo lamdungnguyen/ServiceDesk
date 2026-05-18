@@ -14,6 +14,7 @@ import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/auth';
 import RoleRoute from './components/RoleRoute';
 import CustomerChatBubble from './components/CustomerChatBubble';
+import Profile from './pages/Profile';
 
 const AppRoutes = () => {
   const { user } = useAuth();
@@ -45,9 +46,10 @@ const AppRoutes = () => {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
         </Route>
 
-        {/* Notifications - all roles */}
+        {/* Notifications and Profile - all roles */}
         <Route element={<RoleRoute allowedRoles={['CUSTOMER', 'AGENT', 'ADMIN']} />}>
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/profile" element={<Profile />} />
         </Route>
         
         <Route path="*" element={<Navigate to="/" replace />} />

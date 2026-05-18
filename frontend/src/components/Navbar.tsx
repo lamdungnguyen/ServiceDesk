@@ -201,6 +201,7 @@ interface ProfileMenuProps {
 const ProfileMenu = ({ user, onLogout }: ProfileMenuProps) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -248,8 +249,8 @@ const ProfileMenu = ({ user, onLogout }: ProfileMenuProps) => {
               </div>
             </div>
 
-            <div className="pt-10">
-              <div className="flex items-center gap-2 mb-0.5">
+            <div className="pt-10 cursor-pointer group" onClick={() => { setOpen(false); navigate('/profile'); }}>
+              <div className="flex items-center gap-2 mb-0.5 group-hover:text-blue-500 transition-colors">
                 <h4 className="font-bold text-slate-900 dark:text-white text-sm">{user.name}</h4>
                 {user.role === 'ADMIN' && <Shield size={13} className="text-amber-500" />}
               </div>
@@ -279,9 +280,17 @@ const ProfileMenu = ({ user, onLogout }: ProfileMenuProps) => {
           </div>
 
           <div className="px-3 pb-3 border-t border-slate-100 dark:border-slate-800">
+            <Link
+              to="/profile"
+              onClick={() => setOpen(false)}
+              className="w-full flex items-center gap-2 px-3 py-2.5 mt-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors"
+            >
+              <User size={15} />
+              Trang cá nhân
+            </Link>
             <button
               onClick={() => { setOpen(false); onLogout(); }}
-              className="w-full flex items-center gap-2 px-3 py-2.5 mt-2 text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2.5 mt-1 text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
             >
               <LogOut size={15} />
               Đăng xuất
