@@ -45,14 +45,18 @@ Nền tảng: **React 19, TypeScript, Vite, TailwindCSS v4, Lucide React**.
   - **Agent Workspace:** Môi trường làm việc tập trung cho nhân viên tiếp nhận, xử lý yêu cầu, có Sidebar, bộ lọc (`FilterBar`) chuyên sâu. Tích hợp `CallPanel` để nhận/gọi cuộc gọi thoại.
   - **Admin Dashboard:** Bảng điều khiển quản trị toàn diện với nhiều phân hệ (Dashboard tổng quan, Quản lý Tickets, Users, SLA Monitoring, Agent Performance, Escalation Tickets, Ratings, Settings).
   - Tách biệt trang đăng nhập: `Login.tsx` (Khách hàng) và `StaffLogin.tsx` (Nhân viên).
+* **Quản lý Hồ sơ (User Profile):** Trang thông tin người dùng chi tiết và cài đặt cá nhân, truy cập trực tiếp từ menu người dùng.
 * **Thiết kế Premium (Glassmorphism):** Áp dụng giao diện hiện đại, hiệu ứng kính mờ (glass card), đổ bóng tinh tế và hỗ trợ giao diện Tối/Sáng (Dark Mode) mượt mà.
 * **Thành phần tương tác nâng cao:**
-  - `CreateTicketModal`: Form tạo ticket có tích hợp tự động phân loại nhờ AI.
-  - `TicketDetail` & `CustomerTicketDetailModal`: Giao diện chi tiết xử lý ticket, bao gồm lịch sử bình luận và thay đổi trạng thái.
+  - `CreateTicketModal`: Form tạo ticket hỗ trợ đính kèm file/video và tự động phân loại nhờ AI.
+  - `TicketDetail` & `CustomerTicketDetailModal`: Giao diện chi tiết xử lý ticket, xem số lượng bình luận thực tế, lịch sử bình luận và thay đổi trạng thái.
   - `MessagesTab`: Khu vực quản lý toàn bộ các luồng hội thoại và tin nhắn trực tiếp.
 
-## 4. Các bước dự kiến tiếp theo
-1. **Tối ưu hóa Trải nghiệm WebRTC:** Nâng cấp độ ổn định của cuộc gọi thoại, bổ sung tính năng chia sẻ màn hình (Screen sharing) hoặc Video call.
-2. **Luồng phân công tự động (Auto-assignment):** Bổ sung logic tự động phân bổ (Round-robin hoặc theo khối lượng công việc) để giao ticket ngay cho Agent phù hợp nhất.
-3. **Mở rộng báo cáo quản trị (Advanced Analytics):** Bổ sung chức năng xuất (Export) dữ liệu báo cáo hiệu suất, SLA dưới dạng Excel/PDF cho mục đích lưu trữ.
-4. **Quản lý Tri thức (Knowledge Base):** Xây dựng hệ thống tài liệu/FAQ nội bộ cho phép AI gợi ý câu trả lời tự động cho khách hàng trước khi cần đến Agent.
+## 4. Các hướng và ý tưởng phát triển dự án tiếp theo
+1. **Quản lý Tri thức (Knowledge Base) & AI Chatbot:** Xây dựng hệ thống tài liệu (FAQ/Wiki) nội bộ. Cung cấp AI Chatbot tự động gợi ý cách giải quyết dựa trên tri thức có sẵn trước khi khách hàng phải tạo ticket.
+2. **Luồng phân công tự động thông minh (Smart Auto-assignment):** Bổ sung logic phân bổ ticket tự động cho Agent dựa trên kỹ năng (skills), khối lượng công việc hiện tại (workload) hoặc phân bổ xoay vòng (Round-robin).
+3. **Mở rộng Đa kênh (Omnichannel Support):** Tích hợp Email, Zalo, Telegram, Facebook Messenger hoặc Slack/Teams để khách hàng có thể gửi yêu cầu và nhận hỗ trợ từ bất kỳ đâu, tất cả đồng bộ về một nguồn duy nhất.
+4. **Tự động hóa luồng làm việc (Automation Rules/Triggers):** Cho phép Admin tự cấu hình các quy tắc tự động hóa (Ví dụ: "Nếu ticket Ưu tiên cao không có người nhận sau 10 phút, tự động gửi email cảnh báo cho Quản lý").
+5. **Mở rộng báo cáo quản trị (Advanced Analytics & Dashboards):** Bổ sung biểu đồ trực quan động (sử dụng Recharts/Chart.js), thống kê chi tiết thời gian phản hồi, tỉ lệ hoàn thành SLA, và xuất dữ liệu báo cáo (Export Excel/PDF).
+6. **Tối ưu WebRTC và Collaboration:** Bổ sung tính năng chia sẻ màn hình (Screen sharing), Video call để Agent dễ dàng hỗ trợ khách hàng khắc phục lỗi trực quan hơn.
+7. **Quản lý Tài sản / Cấu hình (CMDB/Asset Management):** Tích hợp quản lý thiết bị công nghệ. Khách hàng có thể gắn ticket với một tài sản cụ thể (ví dụ: máy in bị hỏng, laptop trục trặc) để theo dõi lịch sử bảo trì.
