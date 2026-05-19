@@ -76,4 +76,7 @@ public class Ticket {
 
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
+
+    @org.hibernate.annotations.Formula("(SELECT COUNT(c.id) FROM comments c WHERE c.ticket_id = id)")
+    private Integer commentCount;
 }

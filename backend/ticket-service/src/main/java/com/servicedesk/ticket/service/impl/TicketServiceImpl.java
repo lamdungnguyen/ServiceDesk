@@ -266,6 +266,7 @@ public class TicketServiceImpl implements TicketService {
                 .assigneeId(ticket.getAssigneeId())
                 .escalated(ticket.getEscalated())
                 .resolvedAt(ticket.getResolvedAt())
+                .commentCount(ticket.getCommentCount())
                 .build();
     }
 

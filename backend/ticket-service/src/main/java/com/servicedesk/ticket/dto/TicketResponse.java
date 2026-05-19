@@ -25,4 +25,5 @@ public class TicketResponse {
     private Long assigneeId;
     private Boolean escalated;
     private LocalDateTime resolvedAt;
+    private Integer commentCount;
 }
