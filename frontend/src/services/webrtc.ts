@@ -56,9 +56,9 @@ async function attachLocalStream(): Promise<MediaStream> {
 
   const constraints = currentMicId ? { audio: { deviceId: { exact: currentMicId } }, video: false } : { audio: true, video: false };
   localStream = await navigator.mediaDevices.getUserMedia(constraints);
-  
+
   const pc = ensurePeerConnection();
-  
+
   localStream.getTracks().forEach((track) => pc.addTrack(track, localStream!));
 
   // Pre-add video transceiver so we can replaceTrack later without renegotiating
@@ -67,7 +67,7 @@ async function attachLocalStream(): Promise<MediaStream> {
   if (currentCallbacks?.onLocalStream) {
     currentCallbacks.onLocalStream(localStream);
   }
-  
+
   return localStream;
 }
 
@@ -75,7 +75,7 @@ export async function setAudioInputDevice(deviceId: string): Promise<void> {
   currentMicId = deviceId;
   if (peerConnection && peerConnection.connectionState !== 'closed') {
     await attachLocalStream();
-    
+
     // Renegotiate to update track
     const offer = await peerConnection.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
     await peerConnection.setLocalDescription(offer);
@@ -134,7 +134,7 @@ export async function handleOffer(signal: CallSignal): Promise<void> {
   const pc = ensurePeerConnection();
   const offer = JSON.parse(signal.payload) as RTCSessionDescriptionInit;
   await pc.setRemoteDescription(new RTCSessionDescription(offer));
-  
+
   // Process queued ICE candidates
   for (const candidate of iceCandidateQueue) {
     await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(err => console.error('[WebRTC] Failed to add queued ICE candidate', err));
@@ -194,14 +194,14 @@ export async function setVideoEnabled(enabled: boolean): Promise<void> {
     try {
       const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
       const videoTrack = videoStream.getVideoTracks()[0];
-      
+
       localStream.addTrack(videoTrack);
-      
+
       const videoTransceiver = peerConnection.getTransceivers().find(t => t.receiver.track.kind === 'video');
       if (videoTransceiver) {
         await videoTransceiver.sender.replaceTrack(videoTrack);
       }
-      
+
       if (currentCallbacks?.onLocalStream) {
         currentCallbacks.onLocalStream(localStream);
       }
@@ -214,12 +214,12 @@ export async function setVideoEnabled(enabled: boolean): Promise<void> {
     if (videoTrack) {
       videoTrack.stop();
       localStream.removeTrack(videoTrack);
-      
+
       const videoTransceiver = peerConnection.getTransceivers().find(t => t.receiver.track.kind === 'video');
       if (videoTransceiver) {
         await videoTransceiver.sender.replaceTrack(null);
       }
-      
+
       if (currentCallbacks?.onLocalStream) {
         currentCallbacks.onLocalStream(localStream);
       }
@@ -234,12 +234,12 @@ export async function startScreenShare(onEndedCallback?: () => void): Promise<vo
   try {
     screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
     const screenTrack = screenStream.getVideoTracks()[0];
-    
+
     const videoTransceiver = peerConnection.getTransceivers().find(t => t.receiver.track.kind === 'video');
     if (videoTransceiver) {
       await videoTransceiver.sender.replaceTrack(screenTrack);
     }
-    
+
     if (currentCallbacks?.onLocalStream) {
       const previewStream = new MediaStream([screenTrack, ...localStream.getAudioTracks()]);
       currentCallbacks.onLocalStream(previewStream);
@@ -257,24 +257,24 @@ export async function startScreenShare(onEndedCallback?: () => void): Promise<vo
 
 export async function stopScreenShare(): Promise<void> {
   if (!peerConnection || !localStream) return;
-  
+
   if (screenStream) {
     screenStream.getTracks().forEach(t => t.stop());
     screenStream = null;
   }
-  
+
   const videoTransceiver = peerConnection.getTransceivers().find(t => t.receiver.track.kind === 'video');
   const localVideoTrack = localStream.getVideoTracks()[0] || null;
-  
+
   if (videoTransceiver) {
     await videoTransceiver.sender.replaceTrack(localVideoTrack);
   }
-    
-    if (currentCallbacks?.onLocalStream) {
-      currentCallbacks.onLocalStream(localStream);
-    }
+
+  if (currentCallbacks?.onLocalStream) {
+    currentCallbacks.onLocalStream(localStream);
   }
 }
+
 
 export function endCall(): void {
   if (peerConnection) {

@@ -43,7 +43,9 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
   const [selectedMic, setSelectedMic] = useState('');
   const [selectedSpeaker, setSelectedSpeaker] = useState('');
 
-  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const fullScreenVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const ticketUnsubRef = useRef<(() => void) | null>(null);
@@ -70,9 +72,9 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
 
   // Speaker switching
   useEffect(() => {
-    if (remoteAudioRef.current && selectedSpeaker && 'setSinkId' in remoteAudioRef.current) {
+    if (remoteVideoRef.current && selectedSpeaker && 'setSinkId' in remoteVideoRef.current) {
       // @ts-ignore
-      remoteAudioRef.current.setSinkId(selectedSpeaker).catch(console.warn);
+      remoteVideoRef.current.setSinkId(selectedSpeaker).catch(console.warn);
     }
   }, [selectedSpeaker]);
 
@@ -106,6 +108,13 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
     }
   }, [status]);
 
+  useEffect(() => {
+    if (!minimized && fullScreenVideoRef.current && remoteStreamRef.current) {
+      fullScreenVideoRef.current.srcObject = remoteStreamRef.current;
+      fullScreenVideoRef.current.play().catch(() => {});
+    }
+  }, [minimized, status]);
+
   const cleanup = useCallback(() => {
     rtcEnd();
     if (ticketUnsubRef.current) {
@@ -119,7 +128,9 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
     setActiveTicketId(null);
     startTimeRef.current = null;
     setDuration(0);
-    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
+    remoteStreamRef.current = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+    if (fullScreenVideoRef.current) fullScreenVideoRef.current.srcObject = null;
   }, []);
 
   // Subscribe to user-specific call topic (CALL_REQUEST only)
@@ -153,9 +164,14 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
     // Set WebRTC callbacks (owned by this panel for this call)
     setRtcCallbacks({
       onRemoteStream: (stream) => {
-        if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = stream;
-          remoteAudioRef.current.play().catch(() => {});
+        remoteStreamRef.current = stream;
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = stream;
+          remoteVideoRef.current.play().catch(() => {});
+        }
+        if (fullScreenVideoRef.current) {
+          fullScreenVideoRef.current.srcObject = stream;
+          fullScreenVideoRef.current.play().catch(() => {});
         }
         setStatus('connected');
       },
@@ -243,7 +259,13 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
 
   return (
     <>
-      <audio ref={remoteAudioRef} autoPlay />
+    <>
+      <video 
+        ref={remoteVideoRef} 
+        autoPlay 
+        playsInline 
+        className="hidden" 
+      />
       <audio
         ref={ringtoneRef}
         src="data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
@@ -338,125 +360,127 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
 
       {/* ── Full-screen connected UI ── */}
       {status === 'connected' && !minimized && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 animate-in fade-in duration-300">
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-            <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
-          </div>
-
-          <div className="relative flex flex-col items-center gap-8 w-full max-w-sm px-6">
-            {/* Top row: badges + minimize */}
-            <div className="flex items-center justify-between w-full">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full">
-                  <span className="text-blue-300 text-xs font-bold">Ticket #{activeTicketId}</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-full">
-                  <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                  <span className="text-emerald-300 text-xs font-bold uppercase tracking-wider">Đang kết nối</span>
-                </div>
+        <div className="fixed inset-0 z-[300] flex flex-col items-center bg-slate-950 animate-in fade-in duration-300">
+          
+          {/* Top row */}
+          <div className="w-full px-6 py-4 flex items-center justify-between">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full">
+                <span className="text-blue-300 text-xs font-bold">Ticket #{activeTicketId}</span>
               </div>
-              <button onClick={() => setMinimized(true)} className="text-slate-400 hover:text-white transition-colors p-2" title="Thu nhỏ">
+              <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-full">
+                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                <span className="text-emerald-300 text-xs font-bold uppercase tracking-wider">Đang kết nối</span>
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <button onClick={() => setMinimized(true)} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors shadow-xl" title="Thu nhỏ">
                 <Minimize2 size={20} />
               </button>
             </div>
+          </div>
 
-            {/* Avatar */}
-            <div className="relative">
-              <div className="w-28 h-28 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-4xl font-bold shadow-2xl ring-4 ring-blue-400/30">
+          {/* Main Video Frame */}
+          <div className="flex-1 w-full max-w-6xl px-6 pb-4 flex flex-col relative">
+            <div className="w-full h-full bg-black rounded-3xl overflow-hidden border border-white/10 shadow-2xl relative flex items-center justify-center">
+              <video 
+                ref={fullScreenVideoRef}
+                autoPlay 
+                playsInline 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            
+            {/* Center Info (Avatar/Name) - We make it subtle at the bottom */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+               {/* We can hide this if video is active, but we don't track video active state here easily. We'll leave it semi-transparent. */}
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold shadow-2xl ring-4 ring-blue-400/30 opacity-80">
                 {callerName.charAt(0).toUpperCase()}
               </div>
-              <div className="absolute inset-0 rounded-full border-2 border-blue-400/40 animate-ping" />
-            </div>
-
-            {/* Name & timer */}
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-white mb-2">{callerName}</h2>
-              <p className="text-3xl font-mono font-bold text-emerald-400 tracking-widest tabular-nums">
+              <h2 className="text-xl font-bold text-white/90 mt-4 drop-shadow-lg">{callerName}</h2>
+              <p className="text-2xl font-mono font-bold text-emerald-400 tracking-widest tabular-nums drop-shadow-lg mt-2">
                 {formatDuration(duration)}
               </p>
             </div>
+          </div>
 
-            {/* Controls */}
-            <div className="flex items-center gap-5">
+          {/* Bottom Controls */}
+          <div className="flex items-center gap-6 p-5 rounded-3xl bg-slate-800/80 border border-slate-700 shadow-2xl mb-8 z-10">
               <div className="flex flex-col items-center gap-2">
                 <button
                   onClick={handleToggleMute}
-                  className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95 ${
-                    muted ? 'bg-amber-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95 ${
+                    muted ? 'bg-amber-500 text-white shadow-amber-500/30' : 'bg-white/20 hover:bg-white/30 text-white'
                   }`}
+                  title={muted ? 'Bỏ tắt tiếng' : 'Tắt tiếng'}
                 >
-                  {muted ? <MicOff size={22} /> : <Mic size={22} />}
+                  {muted ? <MicOff size={24} /> : <Mic size={24} />}
                 </button>
-                <span className="text-xs text-slate-400">{muted ? 'Bỏ tắt tiếng' : 'Tắt tiếng'}</span>
               </div>
 
               <div className="flex flex-col items-center gap-2">
                 <button
                   onClick={handleEnd}
-                  className="w-20 h-20 rounded-full bg-red-500 hover:bg-red-400 flex items-center justify-center text-white shadow-2xl shadow-red-500/40 transition-all active:scale-95 hover:scale-105"
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-500 hover:bg-red-400 flex items-center justify-center text-white shadow-2xl shadow-red-500/40 transition-all active:scale-95 hover:scale-105 mx-4"
+                  title="Kết thúc"
                 >
                   <PhoneOff size={28} />
                 </button>
-                <span className="text-xs text-slate-400">Kết thúc</span>
               </div>
 
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center gap-2 relative">
                 <button
                   onClick={() => setShowSettings(s => !s)}
-                  className={`w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 ${
-                    showSettings ? 'bg-white/25 text-white' : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                    showSettings ? 'bg-white/30 text-white' : 'bg-white/20 hover:bg-white/30 text-white'
                   }`}
+                  title="Cài đặt"
                 >
-                  <Settings2 size={22} />
+                  <Settings2 size={24} />
                 </button>
-                <span className="text-xs text-slate-400">Cài đặt</span>
-              </div>
-            </div>
-
-            {/* Settings panel */}
-            {showSettings && (
-              <div className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl space-y-3 animate-in slide-in-from-bottom-4 fade-in duration-200">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Mic size={10} /> Microphone
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={selectedMic}
-                      onChange={e => setSelectedMic(e.target.value)}
-                      className="w-full text-xs bg-white/10 border border-white/20 rounded-lg py-2 pl-3 pr-8 appearance-none text-white"
-                    >
-                      {devices.filter(d => d.kind === 'audioinput').map(d => (
-                        <option key={d.deviceId} value={d.deviceId} className="text-slate-900">
-                          {d.label || `Mic ${d.deviceId.slice(0, 8)}…`}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                {showSettings && (
+                  <div className="absolute bottom-full right-0 mb-4 w-64 p-4 bg-slate-800/95 backdrop-blur-xl border border-white/20 rounded-2xl space-y-4 shadow-2xl animate-in slide-in-from-bottom-4">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-300 uppercase flex items-center gap-1.5">
+                        <Mic size={12} /> Microphone
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={selectedMic}
+                          onChange={e => setSelectedMic(e.target.value)}
+                          className="w-full text-xs bg-slate-900 border border-slate-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none"
+                        >
+                          {devices.filter(d => d.kind === 'audioinput').map(d => (
+                            <option key={d.deviceId} value={d.deviceId}>
+                              {d.label || `Mic ${d.deviceId.slice(0, 8)}…`}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-300 uppercase flex items-center gap-1.5">
+                        <Speaker size={12} /> Speaker
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={selectedSpeaker}
+                          onChange={e => setSelectedSpeaker(e.target.value)}
+                          className="w-full text-xs bg-slate-900 border border-slate-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none"
+                        >
+                          {devices.filter(d => d.kind === 'audiooutput').map(d => (
+                            <option key={d.deviceId} value={d.deviceId}>
+                              {d.label || `Speaker ${d.deviceId.slice(0, 8)}…`}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Speaker size={10} /> Speaker
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={selectedSpeaker}
-                      onChange={e => setSelectedSpeaker(e.target.value)}
-                      className="w-full text-xs bg-white/10 border border-white/20 rounded-lg py-2 pl-3 pr-8 appearance-none text-white"
-                    >
-                      {devices.filter(d => d.kind === 'audiooutput').map(d => (
-                        <option key={d.deviceId} value={d.deviceId} className="text-slate-900">
-                          {d.label || `Speaker ${d.deviceId.slice(0, 8)}…`}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  </div>
-                </div>
+                )}
               </div>
-            )}
           </div>
         </div>
       )}

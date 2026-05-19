@@ -275,15 +275,15 @@ const CallPanel = ({ ticketId, selfId, selfName, selfRole, peerId, peerName, dis
       <button
         onClick={handleCallClick}
         disabled={callBtnDisabled}
-        title={disabledReason || (peerId ? `Video Call ${peerName || 'peer'}` : 'No peer to call')}
+        title={disabledReason || (peerId ? `Call ${peerName || 'peer'}` : 'No peer to call')}
         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
           callBtnDisabled
             ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed'
             : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/50'
         }`}
       >
-        <Video size={14} />
-        Video Call
+        <Phone size={14} />
+        Call
       </button>
 
       {/* Calling overlay */}
