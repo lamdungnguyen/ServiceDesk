@@ -2,6 +2,7 @@ package com.servicedesk.ticket.service.impl;
 
 import com.servicedesk.ticket.dto.AgentMiniDashboardDto;
 import com.servicedesk.ticket.dto.AgentPerformanceDto;
+import com.servicedesk.ticket.dto.AIAccuracyStatsDto;
 import com.servicedesk.ticket.dto.SlaStatsDto;
 import com.servicedesk.ticket.entity.Ticket;
 import com.servicedesk.ticket.entity.User;
@@ -10,6 +11,7 @@ import com.servicedesk.ticket.enums.UserRole;
 import com.servicedesk.ticket.repository.TicketRepository;
 import com.servicedesk.ticket.repository.UserRepository;
 import com.servicedesk.ticket.security.UserContext;
+import com.servicedesk.ticket.service.AIPredictionService;
 import com.servicedesk.ticket.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ public class DashboardServiceImpl implements DashboardService {
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
+    private final AIPredictionService aiPredictionService;
 
     @Override
     public SlaStatsDto getSlaStats() {
@@ -132,5 +135,12 @@ public class DashboardServiceImpl implements DashboardService {
                 .overdue(overdue)
                 .resolvedToday(resolvedToday)
                 .build();
+    }
+
+    @Override
+    public AIAccuracyStatsDto getAIAccuracyStats() {
+        // Delegate to AIPredictionService
+        // Analytics được tính chỉ trên verified records
+        return aiPredictionService.getAccuracyStats();
     }
 }

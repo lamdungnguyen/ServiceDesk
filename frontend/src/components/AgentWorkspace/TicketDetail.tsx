@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { type Ticket } from '../../types/ticket';
-import { assignTicket, getAllUsers, type Comment, type UserPayload } from '../../api/apiClient';
+import {
+  assignTicket, getAllUsers, getAIPredictionForTicket, submitAIFeedback,
+  type Comment, type UserPayload, type AIPredictionPayload
+} from '../../api/apiClient';
 import { useAuth } from '../../context/auth';
 import CallPanel from '../CallPanel';
 import UserProfilePopover from '../UserProfilePopover';
 import {
   Clock, User, MessageSquare, Send, CheckCircle2,
   ChevronDown, Flag, AlertCircle, Inbox, Loader2,
-  Calendar, Tag
+  Calendar, Tag, Brain, ThumbsUp, ThumbsDown, Sparkles
 } from 'lucide-react';
 
 interface TicketDetailProps {
@@ -76,6 +79,18 @@ function avatarColor(name?: string) {
   return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
 }
 
+const CATEGORIES = ['NETWORK', 'ACCOUNT', 'INFRASTRUCTURE', 'HARDWARE', 'SOFTWARE', 'GENERAL'];
+const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+
+const SENTIMENT_STYLE: Record<string, string> = {
+  POSITIVE: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+  NEUTRAL:  'text-slate-600 bg-slate-100 border-slate-200',
+  NEGATIVE: 'text-red-600 bg-red-50 border-red-200',
+};
+const SENTIMENT_ICON: Record<string, string> = {
+  POSITIVE: '😊', NEUTRAL: '😐', NEGATIVE: '😠',
+};
+
 const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTicketAssigned, onPostComment, agentName }: TicketDetailProps) => {
   const { user } = useAuth();
   const [commentText, setCommentText] = useState('');
@@ -85,11 +100,55 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
   const [agents, setAgents] = useState<UserPayload[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
 
+  // AI Prediction state
+  const [aiPrediction, setAiPrediction] = useState<AIPredictionPayload | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [correctedCategory, setCorrectedCategory] = useState('');
+  const [correctedPriority, setCorrectedPriority] = useState('');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbackDone, setFeedbackDone] = useState(false);
+
   useEffect(() => {
     getAllUsers().then(users => {
       setAgents(users.filter(u => u.role === 'AGENT' || u.role === 'ADMIN'));
     }).catch(err => console.warn('Could not fetch agents', err));
   }, []);
+
+  // Load AI prediction whenever ticket changes
+  useEffect(() => {
+    if (!ticket) return;
+    setAiPrediction(null);
+    setFeedbackDone(false);
+    setAiLoading(true);
+    getAIPredictionForTicket(ticket.id)
+      .then(data => {
+        setAiPrediction(data);
+        if (data) {
+          setCorrectedCategory(data.correctedCategory ?? data.predictedCategory ?? '');
+          setCorrectedPriority(data.correctedPriority ?? data.predictedPriority ?? '');
+          if (data.agentCorrected) setFeedbackDone(true);
+        }
+      })
+      .finally(() => setAiLoading(false));
+  }, [ticket?.id]);
+
+  const handleSubmitFeedback = async () => {
+    if (!ticket || !user || !correctedCategory || !correctedPriority) return;
+    setIsSubmittingFeedback(true);
+    try {
+      await submitAIFeedback({
+        ticketId: ticket.id,
+        correctedCategory,
+        correctedPriority,
+        agentId: user.id,
+      });
+      setFeedbackDone(true);
+    } catch (err) {
+      console.error('AI feedback failed', err);
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
 
   useEffect(() => {
     if (commentsEndRef.current) {
@@ -264,6 +323,126 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
           </div>
           <div className="px-5 py-4 text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap transition-colors">
             {ticket.description || <span className="text-slate-400 dark:text-slate-500 italic">No description provided.</span>}
+          </div>
+        </div>
+
+        {/* ── AI Insight Block ── */}
+        <div className="mx-6 mb-6 bg-gradient-to-br from-violet-50 to-blue-50 dark:from-violet-950/30 dark:to-blue-950/30 border border-violet-200 dark:border-violet-800 rounded-2xl overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center gap-2 px-5 py-3 border-b border-violet-200 dark:border-violet-800 bg-violet-100/50 dark:bg-violet-900/20">
+            <Brain size={15} className="text-violet-600 dark:text-violet-400" />
+            <span className="text-sm font-bold text-violet-700 dark:text-violet-300">AI Insight</span>
+            {aiPrediction?.predictionSource && (
+              <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full
+                bg-violet-200 dark:bg-violet-800 text-violet-700 dark:text-violet-300">
+                {aiPrediction.predictionSource === 'RULE_BASED' ? '⚡ Rule-Based' : '🤖 ML Zero-Shot'}
+              </span>
+            )}
+          </div>
+
+          <div className="px-5 py-4">
+            {aiLoading ? (
+              <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+                <Loader2 size={15} className="animate-spin" /> Đang tải dự đoán AI...
+              </div>
+            ) : !aiPrediction ? (
+              <p className="text-sm text-slate-400 italic">Chưa có dữ liệu dự đoán AI cho ticket này.</p>
+            ) : (
+              <>
+                {/* Prediction chips */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
+                    <Tag size={11} className="text-violet-500" />
+                    <span className="text-slate-500 dark:text-slate-400">Danh mục:</span>
+                    <span className="text-violet-700 dark:text-violet-300 font-bold">{aiPrediction.predictedCategory ?? '—'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
+                    <Flag size={11} className="text-amber-500" />
+                    <span className="text-slate-500 dark:text-slate-400">Ưu tiên:</span>
+                    <span className="text-amber-700 dark:text-amber-300 font-bold">{aiPrediction.predictedPriority ?? '—'}</span>
+                  </div>
+                  {aiPrediction.predictedSentiment && (
+                    <div className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 border rounded-lg shadow-sm ${SENTIMENT_STYLE[aiPrediction.predictedSentiment] ?? 'bg-white border-slate-200 text-slate-600'}`}>
+                      <span>{SENTIMENT_ICON[aiPrediction.predictedSentiment] ?? '😐'}</span>
+                      <span>{aiPrediction.predictedSentiment}</span>
+                    </div>
+                  )}
+                  {aiPrediction.confidence != null && (
+                    <div className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
+                      <Sparkles size={11} className="text-sky-500" />
+                      <span className="text-slate-500 dark:text-slate-400">Confidence:</span>
+                      <span className="text-sky-700 dark:text-sky-300 font-bold">{Math.round(aiPrediction.confidence * 100)}%</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Feedback form hoặc kết quả đã xác nhận */}
+                {feedbackDone ? (
+                  <div className="flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-3">
+                    <CheckCircle2 size={16} />
+                    Đã xác nhận — Danh mục: <strong>{correctedCategory}</strong> · Ưu tiên: <strong>{correctedPriority}</strong>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Xác nhận hoặc sửa dự đoán AI:</p>
+                    <div className="flex gap-2 flex-wrap">
+                      <div className="flex-1 min-w-[130px]">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Danh mục</label>
+                        <div className="relative">
+                          <select
+                            value={correctedCategory}
+                            onChange={e => setCorrectedCategory(e.target.value)}
+                            className="w-full appearance-none text-xs font-bold rounded-lg px-3 py-2 pr-7 border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 outline-none focus:ring-2 focus:ring-violet-400/30 focus:border-violet-400 transition-all cursor-pointer"
+                          >
+                            <option value="">-- Chọn --</option>
+                            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                          <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-[120px]">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Ưu tiên</label>
+                        <div className="relative">
+                          <select
+                            value={correctedPriority}
+                            onChange={e => setCorrectedPriority(e.target.value)}
+                            className="w-full appearance-none text-xs font-bold rounded-lg px-3 py-2 pr-7 border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 outline-none focus:ring-2 focus:ring-violet-400/30 focus:border-violet-400 transition-all cursor-pointer"
+                          >
+                            <option value="">-- Chọn --</option>
+                            {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                          <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSubmitFeedback}
+                        disabled={isSubmittingFeedback || !correctedCategory || !correctedPriority}
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isSubmittingFeedback
+                          ? <><Loader2 size={13} className="animate-spin" /> Đang gửi...</>
+                          : <><ThumbsUp size={13} /> Xác nhận / Sửa AI</>}
+                      </button>
+                      {correctedCategory === aiPrediction.predictedCategory &&
+                       correctedPriority === aiPrediction.predictedPriority && (
+                        <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                          <ThumbsUp size={11} /> AI đoán đúng!
+                        </span>
+                      )}
+                      {(correctedCategory !== aiPrediction.predictedCategory ||
+                        correctedPriority !== aiPrediction.predictedPriority) &&
+                        correctedCategory && correctedPriority && (
+                        <span className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
+                          <ThumbsDown size={11} /> Đang sửa lại
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
 

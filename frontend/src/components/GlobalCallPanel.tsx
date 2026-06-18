@@ -259,7 +259,6 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
 
   return (
     <>
-    <>
       <video 
         ref={remoteVideoRef} 
         autoPlay 

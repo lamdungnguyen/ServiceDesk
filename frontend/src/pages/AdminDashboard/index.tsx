@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Ticket, Users, Clock, Settings, Shield, Star, MessageSquare, TrendingUp, Siren } from 'lucide-react';
+import { LayoutDashboard, Ticket, Users, Clock, Settings, Shield, Star, MessageSquare, TrendingUp, Siren, Brain } from 'lucide-react';
 import { getTickets } from '../../api/apiClient';
 import type { Ticket as TicketType } from '../../types/ticket';
 import { useAuth } from '../../context/auth';
@@ -14,6 +14,7 @@ import MessagesTab from '../../components/MessagesTab';
 import AgentPerformanceTab from './AgentPerformance';
 import Escalation from './Escalation';
 import SettingsPage from './SettingsPage';
+import AIAccuracy from './AIAccuracy';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -72,6 +73,7 @@ const AdminDashboard = () => {
     { id: 'escalation', label: 'Escalated Tickets', icon: <Siren size={20} /> },
     { id: 'ratings', label: 'Agent Ratings', icon: <Star size={20} /> },
     { id: 'messages', label: 'Messages', icon: <MessageSquare size={20} /> },
+    { id: 'ai-accuracy', label: 'AI Analytics', icon: <Brain size={20} /> },
     { id: 'settings', label: 'Settings', icon: <Settings size={20} /> },
   ];
 
@@ -143,6 +145,7 @@ const AdminDashboard = () => {
               {activeTab === 'agents' && <AgentPerformanceTab />}
               {activeTab === 'escalation' && <Escalation />}
               {activeTab === 'ratings' && <Ratings />}
+              {activeTab === 'ai-accuracy' && <AIAccuracy />}
               {activeTab === 'settings' && <SettingsPage />}
             </div>
           )}

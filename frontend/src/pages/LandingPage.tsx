@@ -4,6 +4,7 @@ import {
   ArrowRight, Zap, Send, Loader2, CheckCircle2, AlertCircle,
   ChevronDown, Star, Paperclip, X, Image as ImageIcon, FileVideo
 } from 'lucide-react';
+import { useAuth } from '../context/auth';
 import { createTicket, getErrorMessage } from '../api/apiClient';
 import logoUrl from '../assets/logo.png';
 import laptopMockup from '../assets/LaptopandRobot.png';
@@ -16,6 +17,7 @@ import securityImg from '../assets/LandingPage/Security.png';
 import userManaImg from '../assets/LandingPage/User Mana.png';
 
 const LandingPage = () => {
+  const { user } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
   const [searchParams] = useSearchParams();
@@ -54,14 +56,29 @@ const LandingPage = () => {
             <a href="#ticket-form" onClick={(e) => { e.preventDefault(); scrollToForm(); }} className="hover:text-violet-600 transition-colors duration-200">Support</a>
           </div>
           <div className="flex items-center gap-4">
-            <Link to="/login" className="text-2xl font-semibold text-slate-700 hover:text-violet-600 transition-all duration-200 px-4 py-2.5">
-              Sign In
-            </Link>
-            <button onClick={scrollToForm} className="text-2xl font-semibold px-7 py-3.5 text-white rounded-full transition-all duration-300 hover:scale-105 hover:shadow-xl active:scale-95"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', boxShadow: '0 4px 20px -2px rgba(109,40,217,0.5)' }}
-            >
-              Try for Free
-            </button>
+            {user ? (
+              <>
+                <Link to={user.role === 'ADMIN' ? '/admin/dashboard' : user.role === 'AGENT' ? '/staff/dashboard' : '/my-tickets'} className="text-2xl font-semibold text-slate-700 hover:text-violet-600 transition-all duration-200 px-4 py-2.5">
+                  Workspace
+                </Link>
+                <Link to={user.role === 'ADMIN' ? '/admin/dashboard' : user.role === 'AGENT' ? '/staff/dashboard' : '/my-tickets'} className="text-2xl font-semibold px-7 py-3.5 text-white rounded-full transition-all duration-300 hover:scale-105 hover:shadow-xl active:scale-95 inline-flex items-center gap-2"
+                  style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', boxShadow: '0 4px 20px -2px rgba(109,40,217,0.5)' }}
+                >
+                  Go to Portal <ArrowRight size={18} />
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="text-2xl font-semibold text-slate-700 hover:text-violet-600 transition-all duration-200 px-4 py-2.5">
+                  Sign In
+                </Link>
+                <button onClick={scrollToForm} className="text-2xl font-semibold px-7 py-3.5 text-white rounded-full transition-all duration-300 hover:scale-105 hover:shadow-xl active:scale-95"
+                  style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', boxShadow: '0 4px 20px -2px rgba(109,40,217,0.5)' }}
+                >
+                  Try for Free
+                </button>
+              </>
+            )}
           </div>
         </div>
       </nav>

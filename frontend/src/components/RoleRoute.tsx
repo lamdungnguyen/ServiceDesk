@@ -13,7 +13,10 @@ const RoleRoute = ({ allowedRoles }: RoleRouteProps) => {
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+    if (user.role === 'ADMIN') return <Navigate to="/admin/dashboard" replace />;
+    if (user.role === 'AGENT') return <Navigate to="/staff/dashboard" replace />;
+    if (user.role === 'CUSTOMER') return <Navigate to="/my-tickets" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;

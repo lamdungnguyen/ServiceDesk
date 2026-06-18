@@ -37,9 +37,13 @@ public class TicketController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) Boolean overdue,
-            @RequestParam(required = false) String keyword) {
-        if (status != null || priority != null || overdue != null || (keyword != null && !keyword.trim().isEmpty())) {
-            return ResponseEntity.ok(ticketService.getFilteredTickets(status, priority, overdue, keyword));
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean assignedToMe) {
+        // Nếu có bất kỳ filter nào (bao gồm assignedToMe) → dùng getFilteredTickets
+        if (status != null || priority != null || overdue != null
+                || (keyword != null && !keyword.trim().isEmpty())
+                || Boolean.TRUE.equals(assignedToMe)) {
+            return ResponseEntity.ok(ticketService.getFilteredTickets(status, priority, overdue, keyword, assignedToMe));
         }
         List<TicketResponse> responses = ticketService.getAllTickets();
         return ResponseEntity.ok(responses);

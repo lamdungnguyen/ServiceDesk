@@ -2,6 +2,7 @@ package com.servicedesk.ticket.controller;
 
 import com.servicedesk.ticket.dto.AgentMiniDashboardDto;
 import com.servicedesk.ticket.dto.AgentPerformanceDto;
+import com.servicedesk.ticket.dto.AIAccuracyStatsDto;
 import com.servicedesk.ticket.dto.SlaStatsDto;
 import com.servicedesk.ticket.service.DashboardService;
 import lombok.RequiredArgsConstructor;
@@ -32,5 +33,16 @@ public class DashboardController {
     @GetMapping("/agent/me")
     public ResponseEntity<AgentMiniDashboardDto> getAgentMiniDashboard() {
         return ResponseEntity.ok(dashboardService.getAgentMiniDashboard());
+    }
+
+    /**
+     * GET /api/v1/dashboard/ai-accuracy
+     *
+     * Trả về AI accuracy statistics cho Admin dashboard.
+     * Chỉ tính trên verified records (Agent đã xem xét).
+     */
+    @GetMapping("/ai-accuracy")
+    public ResponseEntity<AIAccuracyStatsDto> getAIAccuracyStats() {
+        return ResponseEntity.ok(dashboardService.getAIAccuracyStats());
     }
 }

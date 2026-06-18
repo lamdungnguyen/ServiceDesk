@@ -22,7 +22,7 @@ public class Ticket {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "NVARCHAR(500)")
     private String title;
 
     @Column(columnDefinition = "NVARCHAR(MAX)")
@@ -53,7 +53,7 @@ public class Ticket {
     @Column(name = "reporter_id")
     private Long reporterId;
 
-    @Column(name = "reporter_name")
+    @Column(name = "reporter_name", columnDefinition = "NVARCHAR(255)")
     private String reporterName;
 
     @Column(name = "reporter_email")

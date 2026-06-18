@@ -28,7 +28,17 @@ const AppRoutes = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/demo" element={<Demo />} />
         <Route path="/customer-portal" element={<CustomerPortal />} />
-        <Route path="/login" element={!user ? <Login /> : <Navigate to="/my-tickets" />} />
+        <Route path="/login" element={
+          !user ? (
+            <Login />
+          ) : user.role === 'ADMIN' ? (
+            <Navigate to="/admin/dashboard" />
+          ) : user.role === 'AGENT' ? (
+            <Navigate to="/staff/dashboard" />
+          ) : (
+            <Navigate to="/my-tickets" />
+          )
+        } />
         <Route path="/staff/login" element={!user ? <StaffLogin /> : <Navigate to={user.role === 'ADMIN' ? '/admin/dashboard' : '/staff/dashboard'} />} />
         
         {/* Customer Routes */}

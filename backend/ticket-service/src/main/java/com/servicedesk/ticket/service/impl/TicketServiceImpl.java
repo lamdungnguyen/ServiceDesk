@@ -9,6 +9,7 @@ import com.servicedesk.ticket.enums.Priority;
 import com.servicedesk.ticket.enums.TicketStatus;
 import com.servicedesk.ticket.enums.UserRole;
 import com.servicedesk.ticket.security.UserContext;
+import com.servicedesk.ticket.service.AIPredictionService;
 import com.servicedesk.ticket.service.NotificationService;
 import com.servicedesk.ticket.service.TicketService;
 import com.servicedesk.ticket.service.AIService;
@@ -16,6 +17,7 @@ import com.servicedesk.ticket.dto.AIResponse;
 import com.servicedesk.ticket.exception.UnauthorizedAccessException;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TicketServiceImpl implements TicketService {
@@ -33,6 +36,7 @@ public class TicketServiceImpl implements TicketService {
     private final NotificationService notificationService;
     private final com.servicedesk.ticket.repository.UserRepository userRepository;
     private final AIService aiService;
+    private final AIPredictionService aiPredictionService;
 
     @Override
     @Transactional
@@ -79,11 +83,25 @@ public class TicketServiceImpl implements TicketService {
         
         ticket.setPriority(finalPriority);
         ticket.setDueDate(calculateDueDate(finalPriority));
-        
+
         Ticket savedTicket = ticketRepository.save(ticket);
-        
+
+        // Auto-save AI prediction cho correction learning
+        try {
+            aiPredictionService.saveInitialPrediction(
+                    savedTicket.getId(),
+                    request.getTitle(),
+                    request.getDescription(),
+                    aiResponse
+            );
+        } catch (Exception e) {
+            // Không crash ticket creation nếu prediction save fail
+            log.warn("[Ticket] Failed to save AI prediction for ticket #{}: {}",
+                    savedTicket.getId(), e.getMessage());
+        }
+
         notificationService.notifyAdmins("New ticket created: #" + savedTicket.getId() + " - " + savedTicket.getTitle(), "INFO");
-        
+
         return mapToResponse(savedTicket);
     }
 
@@ -157,36 +175,44 @@ public class TicketServiceImpl implements TicketService {
     @Override
     @Transactional
     public TicketResponse assignTicket(Long id, Long assigneeId) {
-        if (UserContext.getUserRole() != UserRole.ADMIN) {
-            throw new UnauthorizedAccessException("Only ADMIN can assign tickets");
+        Long userId = UserContext.getUserId();
+        UserRole role = UserContext.getUserRole();
+
+        // AGENT chỉ được tự assign cho chính mình
+        if (role == UserRole.AGENT && !assigneeId.equals(userId)) {
+            throw new UnauthorizedAccessException("Agents can only assign tickets to themselves");
         }
-        
+        // CUSTOMER không được assign
+        if (role == UserRole.CUSTOMER) {
+            throw new UnauthorizedAccessException("Customers cannot assign tickets");
+        }
+
         com.servicedesk.ticket.entity.User assignee = userRepository.findById(assigneeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignee not found with id: " + assigneeId));
-                
+
         if (assignee.getRole() != UserRole.AGENT && assignee.getRole() != UserRole.ADMIN) {
             throw new IllegalArgumentException("Assignee must be an AGENT or ADMIN");
         }
-        
+
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket not found with id: " + id));
-                
+
         ticket.setAssigneeId(assigneeId);
-        
+
         // Cập nhật trạng thái nếu đang NEW
         if (ticket.getStatus() == TicketStatus.NEW) {
             ticket.setStatus(TicketStatus.ASSIGNED);
         }
-        
+
         Ticket updatedTicket = ticketRepository.save(ticket);
-        
+
         notificationService.createNotification(assigneeId, "You have been assigned to ticket #" + ticket.getId(), "INFO");
-        
+
         return mapToResponse(updatedTicket);
     }
 
     @Override
-    public List<TicketResponse> getFilteredTickets(String status, String priority, Boolean overdue, String keyword) {
+    public List<TicketResponse> getFilteredTickets(String status, String priority, Boolean overdue, String keyword, Boolean assignedToMe) {
         Long userId = UserContext.getUserId();
         UserRole role = UserContext.getUserRole();
 
@@ -197,6 +223,9 @@ public class TicketServiceImpl implements TicketService {
             if (role == UserRole.CUSTOMER) {
                 predicates.add(cb.equal(root.get("reporterId"), userId));
             } else if (role == UserRole.AGENT) {
+                predicates.add(cb.equal(root.get("assigneeId"), userId));
+            } else if (role == UserRole.ADMIN && Boolean.TRUE.equals(assignedToMe)) {
+                // Admin xem ticket được assign cho mình (trong Agent workspace)
                 predicates.add(cb.equal(root.get("assigneeId"), userId));
             }
 

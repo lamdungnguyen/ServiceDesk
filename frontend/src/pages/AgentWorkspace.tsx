@@ -53,8 +53,10 @@ const AgentWorkspace = () => {
     overdue: 'ALL',
   });
 
-  const buildApiParams = useCallback((): TicketFilterParams | undefined => {
-    const params: TicketFilterParams = {};
+  const buildApiParams = useCallback((): TicketFilterParams => {
+    const params: TicketFilterParams = {
+      assignedToMe: true, // Luôn filter theo assignee — kể cả Admin dùng Agent workspace
+    };
 
     if (activeTab === 'in_progress') {
       params.status = 'IN_PROGRESS';
@@ -77,9 +79,9 @@ const AgentWorkspace = () => {
       params.keyword = filters.keyword.trim();
     }
 
-    if (Object.keys(params).length === 0) return undefined;
     return params;
   }, [activeTab, filters]);
+
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
