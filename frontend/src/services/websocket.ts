@@ -62,12 +62,16 @@ export function connectWebSocket(): Promise<void> {
     });
 
     stompClient.onConnect = () => {
-      console.log('[WS] Connected');
+      if (import.meta.env.DEV) {
+        console.log('[WS] Connected');
+      }
       resolve();
     };
 
     stompClient.onStompError = (frame) => {
-      console.error('[WS] STOMP error', frame);
+      if (import.meta.env.DEV) {
+        console.error('[WS] STOMP error', frame);
+      }
       connectionPromise = null;
       reject(new Error(frame.headers?.message || 'WebSocket connection failed'));
     };
@@ -94,7 +98,9 @@ export function subscribeToTicket(ticketId: number, onMessage: MessageHandler): 
   let isUnsubscribed = false;
 
   if (!stompClient?.connected) {
-    console.warn('[WS] Not connected, attempting to connect and subscribe...');
+    if (import.meta.env.DEV) {
+      console.warn('[WS] Not connected, attempting to connect and subscribe...');
+    }
     connectWebSocket().then(() => {
       if (!isUnsubscribed) {
         doSubscribe(destination, onMessage);
@@ -128,7 +134,9 @@ function doSubscribe(destination: string, onMessage: MessageHandler) {
       const parsed: ChatMessagePayload = JSON.parse(message.body);
       onMessage(parsed);
     } catch (err) {
-      console.error('[WS] Failed to parse message', err);
+      if (import.meta.env.DEV) {
+        console.error('[WS] Failed to parse message', err);
+      }
     }
   });
 
@@ -137,7 +145,9 @@ function doSubscribe(destination: string, onMessage: MessageHandler) {
 
 export function sendChatMessage(message: Omit<ChatMessagePayload, 'id' | 'timestamp'>): void {
   if (!stompClient?.connected) {
-    console.error('[WS] Cannot send - not connected');
+    if (import.meta.env.DEV) {
+      console.error('[WS] Cannot send - not connected');
+    }
     return;
   }
 
@@ -187,7 +197,9 @@ export function subscribeToNotifications(userId: number, onNotification: Notific
         const parsed: NotificationPayload = JSON.parse(message.body);
         onNotification(parsed);
       } catch (err) {
-        console.error('[WS] Failed to parse notification', err);
+        if (import.meta.env.DEV) {
+          console.error('[WS] Failed to parse notification', err);
+        }
       }
     });
     subscriptions.set(destination, sub);
@@ -198,7 +210,11 @@ export function subscribeToNotifications(userId: number, onNotification: Notific
       if (!isUnsubscribed) {
         doNotifSubscribe();
       }
-    }).catch(err => console.error('[WS] connect failed for notifications', err));
+    }).catch(err => {
+      if (import.meta.env.DEV) {
+        console.error('[WS] connect failed for notifications', err);
+      }
+    });
   } else {
     doNotifSubscribe();
   }
@@ -252,7 +268,9 @@ export function subscribeToCall(ticketId: number, onSignal: CallSignalHandler): 
         const parsed: CallSignal = JSON.parse(message.body);
         onSignal(parsed);
       } catch (err) {
-        console.error('[WS] Failed to parse call signal', err);
+        if (import.meta.env.DEV) {
+          console.error('[WS] Failed to parse call signal', err);
+        }
       }
     });
     subscriptions.set(destination, sub);
@@ -263,7 +281,11 @@ export function subscribeToCall(ticketId: number, onSignal: CallSignalHandler): 
       if (!isUnsubscribed) {
         doCallSubscribe();
       }
-    }).catch(err => console.error('[WS] connect failed', err));
+    }).catch(err => {
+      if (import.meta.env.DEV) {
+        console.error('[WS] connect failed', err);
+      }
+    });
   } else {
     doCallSubscribe();
   }
@@ -298,7 +320,9 @@ export function subscribeToDm(conversationId: number, onMessage: DmMessageHandle
         const parsed: DirectMessagePayload = JSON.parse(message.body);
         onMessage(parsed);
       } catch (err) {
-        console.error('[WS] Failed to parse DM message', err);
+        if (import.meta.env.DEV) {
+          console.error('[WS] Failed to parse DM message', err);
+        }
       }
     });
     subscriptions.set(destination, sub);
@@ -307,7 +331,11 @@ export function subscribeToDm(conversationId: number, onMessage: DmMessageHandle
   if (!stompClient?.connected) {
     connectWebSocket()
       .then(() => { if (!isUnsubscribed) doSubscribe(); })
-      .catch(err => console.error('[WS] connect failed for DM', err));
+      .catch(err => {
+        if (import.meta.env.DEV) {
+          console.error('[WS] connect failed for DM', err);
+        }
+      });
   } else {
     doSubscribe();
   }
@@ -331,7 +359,9 @@ export function sendDmMessage(payload: {
   fileName?: string;
 }): void {
   if (!stompClient?.connected) {
-    console.error('[WS] Cannot send DM - not connected');
+    if (import.meta.env.DEV) {
+      console.error('[WS] Cannot send DM - not connected');
+    }
     return;
   }
   stompClient.publish({
@@ -358,7 +388,9 @@ export function subscribeToUserCalls(userId: number, onSignal: CallSignalHandler
         const parsed: CallSignal = JSON.parse(message.body);
         onSignal(parsed);
       } catch (err) {
-        console.error('[WS] Failed to parse user call signal', err);
+        if (import.meta.env.DEV) {
+          console.error('[WS] Failed to parse user call signal', err);
+        }
       }
     });
     subscriptions.set(destination, sub);
@@ -367,7 +399,11 @@ export function subscribeToUserCalls(userId: number, onSignal: CallSignalHandler
   if (!stompClient?.connected) {
     connectWebSocket()
       .then(() => { if (!isUnsubscribed) doSubscribe(); })
-      .catch(err => console.error('[WS] connect failed for user calls', err));
+      .catch(err => {
+        if (import.meta.env.DEV) {
+          console.error('[WS] connect failed for user calls', err);
+        }
+      });
   } else {
     doSubscribe();
   }
@@ -383,7 +419,9 @@ export function subscribeToUserCalls(userId: number, onSignal: CallSignalHandler
 
 export function sendCallSignal(signal: CallSignal): void {
   if (!stompClient?.connected) {
-    console.error('[WS] Cannot send call signal - not connected');
+    if (import.meta.env.DEV) {
+      console.error('[WS] Cannot send call signal - not connected');
+    }
     return;
   }
   stompClient.publish({
@@ -413,7 +451,9 @@ export function subscribeToSupportRequests(onRequest: SupportRequestHandler): ()
         const parsed: SupportRequestPayload = JSON.parse(message.body);
         onRequest(parsed);
       } catch (err) {
-        console.error('[WS] Failed to parse support request', err);
+        if (import.meta.env.DEV) {
+          console.error('[WS] Failed to parse support request', err);
+        }
       }
     });
     subscriptions.set(destination, sub);
@@ -422,7 +462,11 @@ export function subscribeToSupportRequests(onRequest: SupportRequestHandler): ()
   if (!stompClient?.connected) {
     connectWebSocket()
       .then(() => { if (!isUnsubscribed) doSubscribe(); })
-      .catch(err => console.error('[WS] connect failed for support requests', err));
+      .catch(err => {
+        if (import.meta.env.DEV) {
+          console.error('[WS] connect failed for support requests', err);
+        }
+      });
   } else {
     doSubscribe();
   }
@@ -453,7 +497,9 @@ export function subscribeToSupportTaken(onTaken: SupportRequestHandler): () => v
         const parsed: SupportRequestPayload = JSON.parse(message.body);
         onTaken(parsed);
       } catch (err) {
-        console.error('[WS] Failed to parse support taken', err);
+        if (import.meta.env.DEV) {
+          console.error('[WS] Failed to parse support taken', err);
+        }
       }
     });
     subscriptions.set(destination, sub);
@@ -462,7 +508,11 @@ export function subscribeToSupportTaken(onTaken: SupportRequestHandler): () => v
   if (!stompClient?.connected) {
     connectWebSocket()
       .then(() => { if (!isUnsubscribed) doSubscribe(); })
-      .catch(err => console.error('[WS] connect failed for support taken', err));
+      .catch(err => {
+        if (import.meta.env.DEV) {
+          console.error('[WS] connect failed for support taken', err);
+        }
+      });
   } else {
     doSubscribe();
   }
@@ -493,7 +543,9 @@ export function subscribeToCustomerSupport(customerId: number, onUpdate: Support
         const parsed: SupportRequestPayload = JSON.parse(message.body);
         onUpdate(parsed);
       } catch (err) {
-        console.error('[WS] Failed to parse customer support update', err);
+        if (import.meta.env.DEV) {
+          console.error('[WS] Failed to parse customer support update', err);
+        }
       }
     });
     subscriptions.set(destination, sub);
@@ -502,7 +554,11 @@ export function subscribeToCustomerSupport(customerId: number, onUpdate: Support
   if (!stompClient?.connected) {
     connectWebSocket()
       .then(() => { if (!isUnsubscribed) doSubscribe(); })
-      .catch(err => console.error('[WS] connect failed for customer support', err));
+      .catch(err => {
+        if (import.meta.env.DEV) {
+          console.error('[WS] connect failed for customer support', err);
+        }
+      });
   } else {
     doSubscribe();
   }
