@@ -10,12 +10,29 @@ const apiClient = axios.create({
 // Attach JWT auth token from logged-in user
 apiClient.interceptors.request.use((config) => {
   const savedUser = localStorage.getItem('auth_user');
+  let token: string | null = null;
+
   if (savedUser) {
-    const user = JSON.parse(savedUser);
-    if (user.token) {
-      config.headers.Authorization = `Bearer ${user.token}`;
+    try {
+      const user = JSON.parse(savedUser);
+      if (user && typeof user === 'object' && 'token' in user) {
+        token = user.token;
+      }
+    } catch {
+      // If savedUser is not valid JSON, treat it as the token itself
+      token = savedUser;
     }
   }
+
+  // Fallback to common token keys
+  if (!token) {
+    token = localStorage.getItem('token') || localStorage.getItem('jwt') || localStorage.getItem('accessToken');
+  }
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
   return config;
 });
 
