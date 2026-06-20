@@ -76,7 +76,7 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
       setSinkId?: (sinkId: string) => Promise<void>;
     }) | null;
     if (remoteVideo?.setSinkId && selectedSpeaker) {
-      remoteVideo.setSinkId(selectedSpeaker).catch(console.warn);
+      remoteVideo.setSinkId(selectedSpeaker).catch(() => {});
     }
   }, [selectedSpeaker]);
 
@@ -154,7 +154,7 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
           setStatus('ringing');
         });
       })
-      .catch(console.error);
+      .catch(() => {});
     return () => { if (unsub) unsub(); };
   }, [agentId]);
 
