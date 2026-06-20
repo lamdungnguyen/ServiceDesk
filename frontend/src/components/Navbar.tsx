@@ -4,7 +4,7 @@ import { Search, Bell, LogOut, AlertCircle, Info, MessageSquare, User, Briefcase
 import { useAuth } from '../context/auth';
 import { getNotifications, markNotificationAsRead, type Notification } from '../api/apiClient';
 import { connectWebSocket, subscribeToNotifications } from '../services/websocket';
-import logoUrl from '../assets/logo.png';
+import logoUrl from '../assets/logo_nobg.png';
 
 function formatRelative(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();

@@ -7,6 +7,7 @@ import com.servicedesk.ticket.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -15,23 +16,23 @@ import org.springframework.stereotype.Component;
 public class DataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
+    private final BCryptPasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
-        // Create default admin account if not exists
         if (!userRepository.existsByUsername("admin")) {
             User admin = User.builder()
                     .username("admin")
-                    .password("123456") // NOTE: Use BCrypt in production
+                    .password(passwordEncoder.encode("123456"))
                     .name("System Administrator")
                     .email("admin@servicedesk.local")
                     .role(UserRole.ADMIN)
                     .status(UserStatus.ACTIVE)
                     .build();
             userRepository.save(admin);
-            log.info("✅ Default admin account created: username=admin, password=123456");
+            log.info("Default admin account created: username=admin, password=123456");
         } else {
-            log.info("ℹ️  Admin account already exists, skipping seed.");
+            log.info("Admin account already exists, skipping seed.");
         }
     }
 }

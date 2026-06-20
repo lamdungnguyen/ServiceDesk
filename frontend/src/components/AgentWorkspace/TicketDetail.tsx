@@ -326,6 +326,26 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
           </div>
         </div>
 
+        {/* Custom Fields */}
+        {ticket.customFields && ticket.customFields.length > 0 && (
+          <div className="mx-6 mb-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm transition-colors">
+            <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 transition-colors">
+              <Tag size={15} className="text-emerald-500 dark:text-emerald-400" />
+              <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Additional Information</span>
+            </div>
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {ticket.customFields.map(field => (
+                <div key={field.fieldId} className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl p-3">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{field.fieldName}</div>
+                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 break-words">
+                    {field.fieldType === 'CHECKBOX' ? (field.value === 'true' ? 'Yes' : 'No') : (field.value || '—')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── AI Insight Block ── */}
         <div className="mx-6 mb-6 bg-gradient-to-br from-violet-50 to-blue-50 dark:from-violet-950/30 dark:to-blue-950/30 border border-violet-200 dark:border-violet-800 rounded-2xl overflow-hidden">
           {/* Header */}

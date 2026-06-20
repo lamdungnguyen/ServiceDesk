@@ -6,7 +6,12 @@ const getSavedUser = (): User | null => {
   if (!savedUser) return null;
 
   try {
-    return JSON.parse(savedUser) as User;
+    const user = JSON.parse(savedUser) as User;
+    if (!user.token) {
+      localStorage.removeItem('auth_user');
+      return null;
+    }
+    return user;
   } catch {
     localStorage.removeItem('auth_user');
     return null;

@@ -20,6 +20,13 @@ const AppRoutes = () => {
   const { user } = useAuth();
   const location = useLocation();
   const isLanding = location.pathname === '/';
+
+  const getHomePath = () => {
+    if (!user) return '/login';
+    if (user.role === 'ADMIN') return '/admin/dashboard';
+    if (user.role === 'AGENT') return '/staff/dashboard';
+    return '/my-tickets';
+  };
   
   return (
     <>
@@ -39,7 +46,7 @@ const AppRoutes = () => {
             <Navigate to="/my-tickets" />
           )
         } />
-        <Route path="/staff/login" element={!user ? <StaffLogin /> : <Navigate to={user.role === 'ADMIN' ? '/admin/dashboard' : '/staff/dashboard'} />} />
+        <Route path="/staff/login" element={!user ? <StaffLogin /> : <Navigate to={getHomePath()} />} />
         
         {/* Customer Routes */}
         <Route element={<RoleRoute allowedRoles={['CUSTOMER']} />}>

@@ -24,6 +24,18 @@ function getWsUrl(): string {
   return `${protocol}://${window.location.host}/ws`;
 }
 
+function getAuthConnectHeaders(): Record<string, string> {
+  const savedUser = localStorage.getItem('auth_user');
+  if (!savedUser) return {};
+
+  try {
+    const user = JSON.parse(savedUser) as { token?: string | null };
+    return user.token ? { Authorization: `Bearer ${user.token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 export function connectWebSocket(): Promise<void> {
   if (stompClient?.connected) {
     return Promise.resolve();
@@ -35,6 +47,7 @@ export function connectWebSocket(): Promise<void> {
   connectionPromise = new Promise((resolve, reject) => {
     stompClient = new Client({
       webSocketFactory: () => new SockJS(getWsUrl()),
+      connectHeaders: getAuthConnectHeaders(),
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,

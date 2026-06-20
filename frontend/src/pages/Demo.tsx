@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Play, Shield, Zap, BarChart3, MessageSquare, CheckCircle } from 'lucide-react';
-import logoUrl from '../assets/logo.png';
+import logoUrl from '../assets/logo_nobg.png';
 import heroImg from '../assets/hero.png';
 
 const Demo = () => {

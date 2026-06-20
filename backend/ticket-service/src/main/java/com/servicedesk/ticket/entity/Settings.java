@@ -60,6 +60,18 @@ public class Settings {
     @Builder.Default
     private Integer slaWarningThresholdMinutes = 60;
 
+    @Column(name = "business_start_time")
+    @Builder.Default
+    private String businessStartTime = "08:00";
+
+    @Column(name = "business_end_time")
+    @Builder.Default
+    private String businessEndTime = "17:00";
+
+    @Column(name = "work_days")
+    @Builder.Default
+    private String workDays = "MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY";
+
     // ── Security Settings ──────────────────────────────────────────────────
     @Column(name = "session_timeout_minutes")
     @Builder.Default

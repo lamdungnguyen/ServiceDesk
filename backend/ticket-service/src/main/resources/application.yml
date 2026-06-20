@@ -29,3 +29,8 @@ ai:
 
 messaging:
   upload-dir: uploads/
+
+auth:
+  jwt:
+    secret: ${JWT_SECRET:servicedesk-local-dev-secret-change-me}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}

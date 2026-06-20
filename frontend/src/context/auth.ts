@@ -7,6 +7,8 @@ export interface User {
   role: UserRole;
   name: string;
   username: string;
+  email?: string;
+  token?: string | null;
   agentType?: string;
   status?: 'ACTIVE' | 'PENDING' | 'INACTIVE';
 }

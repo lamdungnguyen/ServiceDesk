@@ -72,9 +72,11 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
 
   // Speaker switching
   useEffect(() => {
-    if (remoteVideoRef.current && selectedSpeaker && 'setSinkId' in remoteVideoRef.current) {
-      // @ts-ignore
-      remoteVideoRef.current.setSinkId(selectedSpeaker).catch(console.warn);
+    const remoteVideo = remoteVideoRef.current as (HTMLVideoElement & {
+      setSinkId?: (sinkId: string) => Promise<void>;
+    }) | null;
+    if (remoteVideo?.setSinkId && selectedSpeaker) {
+      remoteVideo.setSinkId(selectedSpeaker).catch(console.warn);
     }
   }, [selectedSpeaker]);
 

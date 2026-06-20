@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/auth';
 import { createTicket, getErrorMessage } from '../api/apiClient';
-import logoUrl from '../assets/logo.png';
+import logoUrl from '../assets/logo_nobg.png';
 import laptopMockup from '../assets/LaptopandRobot.png';
 import bgImg from '../assets/background.png';
 import aiImg from '../assets/LandingPage/AI.png';
@@ -46,7 +46,7 @@ const LandingPage = () => {
       <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${scrolled ? 'bg-white/80 backdrop-blur-xl shadow-lg shadow-slate-200/50 border-b border-white/50' : 'bg-transparent'}`}>
         <div className="w-full h-20 flex items-center justify-between" style={{ padding: '0 max(5rem, 8vw)' }}>
           <div className="flex items-center gap-3">
-            <img src={logoUrl} alt="ServiceDesk Logo" className="w-15 h-15 object-contain" />
+            <img src={logoUrl} alt="ServiceDesk Logo" className="w-20 h-20 object-contain" />
             <span className="text-[2.5rem] font-bold text-slate-900">ServiceDesk</span>
           </div>
           <div className="hidden md:flex items-center gap-10 text-2xl font-medium text-slate-700">
@@ -523,7 +523,7 @@ const LandingPage = () => {
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
             <div className="relative z-10">
-              <img src={logoUrl} alt="ServiceDesk" className="w-14 h-14 mx-auto mb-6 object-contain drop-shadow-lg" />
+              <img src={logoUrl} alt="ServiceDesk" className="w-24 h-24 mx-auto mb-6 object-contain drop-shadow-lg" />
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 Ready to level up your support?
               </h2>
@@ -553,8 +553,8 @@ const LandingPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
             <div className="md:col-span-1">
               <div className="flex items-center gap-3 mb-4">
-                <img src={logoUrl} alt="ServiceDesk Logo" className="w-7 h-7 object-contain" />
-                <span className="text-lg font-bold text-white">ServiceDesk</span>
+                <img src={logoUrl} alt="ServiceDesk Logo" className="w-10 h-10 object-contain" />
+                <span className="text-xl font-bold text-white">ServiceDesk</span>
               </div>
               <p className="text-slate-400 text-sm leading-relaxed">
                 Enterprise IT service management and customer support platform.

@@ -99,7 +99,7 @@ const SupportRequestsPanel = ({ onSelectRequest }: SupportRequestsPanelProps) =>
           id: accepted.id,
           customerName: accepted.customerName,
           topic: accepted.topic,
-          description: accepted.description,
+          description: accepted.description ?? '',
           conversationId: accepted.conversationId,
           createdAt: accepted.createdAt,
         });
@@ -196,7 +196,7 @@ const SupportRequestsPanel = ({ onSelectRequest }: SupportRequestsPanelProps) =>
                       id: request.id,
                       customerName: request.customerName,
                       topic: request.topic,
-                      description: request.description,
+                      description: request.description ?? '',
                       conversationId: 0, // No conversation yet
                       createdAt: request.createdAt,
                     })}
@@ -270,7 +270,7 @@ const SupportRequestsPanel = ({ onSelectRequest }: SupportRequestsPanelProps) =>
                     id: chat.id,
                     customerName: chat.customerName,
                     topic: chat.topic,
-                    description: chat.description,
+                    description: chat.description ?? '',
                     conversationId: chat.conversationId,
                     createdAt: chat.createdAt,
                   })}

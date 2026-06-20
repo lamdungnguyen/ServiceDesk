@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/auth';
-import { createTicket, getErrorMessage } from '../api/apiClient';
-import { CheckCircle2, Loader2, AlertCircle, Send, Phone, Building, LayoutGrid, Paperclip, X, Image as ImageIcon, FileVideo } from 'lucide-react';
+import { createTicket, getErrorMessage, uploadMessageFile, getCustomFieldsByCategory } from '../api/apiClient';
+import type { CustomFieldConfig } from '../types/ticket';
+import { CheckCircle2, Loader2, AlertCircle, Send, Phone, Building, LayoutGrid, Paperclip, X, Image as ImageIcon, FileVideo, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import logoUrl from '../assets/logo.png';
+import logoUrl from '../assets/logo_nobg.png';
 
 const CustomerPortal = () => {
   const { user } = useAuth();
@@ -22,6 +23,20 @@ const CustomerPortal = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const [customFields, setCustomFields] = useState<CustomFieldConfig[]>([]);
+  const [customFieldAnswers, setCustomFieldAnswers] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    getCustomFieldsByCategory(category).then(fields => {
+      setCustomFields(fields);
+      setCustomFieldAnswers({});
+    }).catch(console.error);
+  }, [category]);
+
+  const handleCustomFieldChange = (fieldId: number, value: string) => {
+    setCustomFieldAnswers(prev => ({ ...prev, [fieldId]: value }));
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -48,21 +63,49 @@ const CustomerPortal = () => {
     
     setIsSubmitting(true);
     setError(null);
+
+    // Validate required custom fields
+    for (const field of customFields) {
+      if (field.isRequired && (!customFieldAnswers[field.id] || !customFieldAnswers[field.id].trim())) {
+        setError(`Please fill in the required field: ${field.fieldName}`);
+        setIsSubmitting(false);
+        return;
+      }
+    }
     
     try {
+      const uploadedFilesInfo: string[] = [];
+      if (files.length > 0) {
+        for (const file of files) {
+          try {
+            const res = await uploadMessageFile(file);
+            uploadedFilesInfo.push(`[${res.fileName}](${res.fileUrl})`);
+          } catch (err) {
+            console.error("Failed to upload file:", file.name, err);
+            uploadedFilesInfo.push(`[Failed to upload: ${file.name}]`);
+          }
+        }
+      }
+
       // Create ticket payload
       let finalDescription = description;
-      if (files.length > 0) {
-        finalDescription += `\n\n[Attachments: ${files.map(f => f.name).join(', ')}] (Saved locally)`;
+      if (uploadedFilesInfo.length > 0) {
+        finalDescription += `\n\n**Attachments:**\n` + uploadedFilesInfo.map(info => `- ${info}`).join('\n');
       }
       if (phone || company) {
         finalDescription = `Contact Phone: ${phone || 'N/A'}\nCompany: ${company || 'N/A'}\n\n` + finalDescription;
       }
 
+      const customFieldsPayload = Object.entries(customFieldAnswers)
+        .filter(([, val]) => val.trim() !== '')
+        .map(([id, val]) => ({ fieldId: parseInt(id), value: val }));
+
       await createTicket({
         title: `[${category}] ${title}`,
         description: finalDescription,
         priority: 'MEDIUM', // Default priority
+        category,
+        customFields: customFieldsPayload,
         ...(user ? {} : { reporterName: name, reporterEmail: email })
       });
 
@@ -222,6 +265,50 @@ const CustomerPortal = () => {
                   className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 resize-none font-medium leading-relaxed shadow-sm"
                 ></textarea>
               </div>
+
+              {/* Dynamic Custom Fields */}
+              {customFields.length > 0 && customFields.map(field => (
+                <div key={field.id} className="col-span-1 md:col-span-2 group animate-in fade-in slide-in-from-top-4">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 group-focus-within:text-primary-600 dark:group-focus-within:text-primary-400 transition-colors">
+                    {field.fieldName} {field.isRequired && <span className="text-red-500">*</span>}
+                  </label>
+                  {field.fieldType === 'DROPDOWN' ? (
+                    <div className="relative">
+                      <select
+                        value={customFieldAnswers[field.id] || ''}
+                        onChange={(e) => handleCustomFieldChange(field.id, e.target.value)}
+                        className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all text-slate-800 dark:text-slate-200 font-medium appearance-none cursor-pointer shadow-sm"
+                      >
+                        <option value="">-- Select Option --</option>
+                        {field.options?.split(',').map(opt => opt.trim()).map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 pr-5 flex items-center pointer-events-none text-slate-400">
+                        <ChevronDown size={18} />
+                      </div>
+                    </div>
+                  ) : field.fieldType === 'CHECKBOX' ? (
+                    <label className="flex items-center gap-3 cursor-pointer mt-2">
+                      <input
+                        type="checkbox"
+                        checked={customFieldAnswers[field.id] === 'true'}
+                        onChange={(e) => handleCustomFieldChange(field.id, e.target.checked ? 'true' : 'false')}
+                        className="w-5 h-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      <span className="text-slate-700 dark:text-slate-300 font-medium">Yes / Enabled</span>
+                    </label>
+                  ) : (
+                    <input
+                      type="text"
+                      value={customFieldAnswers[field.id] || ''}
+                      onChange={(e) => handleCustomFieldChange(field.id, e.target.value)}
+                      placeholder={`Enter ${field.fieldName.toLowerCase()}`}
+                      className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 font-medium shadow-sm"
+                    />
+                  )}
+                </div>
+              ))}
 
               {/* Section 2: Attachments */}
               <div className="col-span-1 md:col-span-2 pb-4 pt-6 border-b border-slate-100 dark:border-slate-700/50">

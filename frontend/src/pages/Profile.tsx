@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/auth';
-import { User, Mail, Shield, Bell, Settings, Camera, Save, Globe, Smartphone, MonitorSmartphone, CheckCircle2, LogOut, Lock } from 'lucide-react';
+import { User, Mail, Shield, Bell, Settings, Save, Smartphone, CheckCircle2, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
