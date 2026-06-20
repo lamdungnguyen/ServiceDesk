@@ -214,7 +214,7 @@ const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketV
             ))}
             {filteredTickets.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-12 text-center text-slate-500 dark:text-slate-400">
+                <td colSpan={7} className="p-12 text-center text-slate-500 dark:text-slate-400">
                   <ShieldAlert size={32} className="mx-auto mb-3 opacity-20" />
                   <p>No tickets found matching your search.</p>
                 </td>

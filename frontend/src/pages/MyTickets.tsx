@@ -128,7 +128,9 @@ const MyTickets = () => {
       } else if (sortField === 'status') {
         cmp = (STATUS_ORDER[a.status] ?? 0) - (STATUS_ORDER[b.status] ?? 0);
       } else if (sortField === 'createdAt') {
-        cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        const aTime = new Date(a.createdAt).getTime() || 0;
+        const bTime = new Date(b.createdAt).getTime() || 0;
+        cmp = aTime - bTime;
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });

@@ -16,7 +16,6 @@ const Users = () => {
       const data = await getAllUsers();
       setUsers(data);
     } catch (err: unknown) {
-      console.error('Failed to load users:', err);
       setError(getErrorMessage(err, 'Cannot connect to backend. Check that the server is running.'));
     } finally {
       setLoading(false);

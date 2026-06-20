@@ -1,3 +1,4 @@
+```typescript
 import { useState, useEffect } from 'react';
 import { Star, TrendingUp, Users, MessageSquare, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { getAllAgentRatingStats, type AgentRatingStats } from '../../api/apiClient';
@@ -59,7 +60,7 @@ const Ratings = () => {
   );
 
   // Score distribution across all agents
-  const allRatings = stats.flatMap(s => s.recentRatings);
+  const allRatings = stats.flatMap(s => s.recentRatings || []);
   const scoreDistribution = [5, 4, 3, 2, 1].map(score => ({
     score,
     count: allRatings.filter(r => r.score === score).length,
@@ -188,86 +189,4 @@ const Ratings = () => {
       </div>
 
       {/* All Agents Detailed List */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h3 className="text-lg font-bold text-slate-800 dark:text-white">All Agent Ratings</h3>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-            <input
-              type="text"
-              placeholder="Search agent..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg py-2 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-purple-500/30 placeholder:text-slate-400 dark:text-slate-200"
-            />
-          </div>
-        </div>
-
-        {filtered.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">
-            {stats.length === 0 ? 'No ratings have been submitted yet.' : 'No agents match your search.'}
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100 dark:divide-slate-700">
-            {filtered.map(agent => (
-              <div key={agent.agentId}>
-                <div
-                  className="p-4 px-6 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer"
-                  onClick={() => setExpandedAgent(expandedAgent === agent.agentId ? null : agent.agentId)}
-                >
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                      {agent.agentName.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{agent.agentName}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <StarDisplay score={agent.averageScore} size={13} />
-                        <span className="text-xs text-slate-400">{agent.totalRatings} review{agent.totalRatings !== 1 ? 's' : ''}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className={`px-3 py-1.5 rounded-lg border text-sm font-bold ${getScoreBg(agent.averageScore)} ${getScoreColor(agent.averageScore)}`}>
-                      {agent.averageScore.toFixed(1)}
-                    </div>
-                    {expandedAgent === agent.agentId ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
-                  </div>
-                </div>
-
-                {/* Expanded Recent Reviews */}
-                {expandedAgent === agent.agentId && agent.recentRatings.length > 0 && (
-                  <div className="px-6 pb-4 bg-slate-50/50 dark:bg-slate-800/50">
-                    <div className="ml-14 space-y-3">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Recent Reviews</p>
-                      {agent.recentRatings.map(r => (
-                        <div key={r.id} className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{r.customerName}</span>
-                              <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full">Ticket #{r.ticketId}</span>
-                            </div>
-                            <span className="text-[10px] text-slate-400">{formatDate(r.createdAt)}</span>
-                          </div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <StarDisplay score={r.score} size={14} />
-                            <span className={`text-xs font-bold ${getScoreColor(r.score)}`}>{r.score}/5</span>
-                          </div>
-                          {r.comment && (
-                            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 italic">"{r.comment}"</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default Ratings;
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate
