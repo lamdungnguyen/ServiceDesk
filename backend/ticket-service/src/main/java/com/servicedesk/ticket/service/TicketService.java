@@ -1,5 +1,6 @@
 package com.servicedesk.ticket.service;
 
+import com.servicedesk.ticket.dto.TicketAuditLogResponse;
 import com.servicedesk.ticket.dto.TicketCreateRequest;
 import com.servicedesk.ticket.dto.TicketResponse;
 import com.servicedesk.ticket.enums.TicketStatus;
@@ -14,4 +15,5 @@ public interface TicketService {
     TicketResponse updateTicketStatus(Long id, TicketStatus status);
     TicketResponse assignTicket(Long id, Long assigneeId);
     List<TicketResponse> getEscalatedTickets();
+    List<TicketAuditLogResponse> getAuditLogsForTicket(Long id);
 }

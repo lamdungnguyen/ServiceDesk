@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Phone, PhoneOff, PhoneCall, Mic, MicOff, X, Settings2, Speaker, ChevronDown, Minimize2, Maximize2, Video, VideoOff, MonitorUp, MonitorOff } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, X, Settings2, Speaker, Minimize2, Maximize2, Video, VideoOff, MonitorUp, MonitorOff } from 'lucide-react';
 import { connectWebSocket, subscribeToCall, sendCallSignal, sendChatMessage, type CallSignal } from '../services/websocket';
 import {
   setContext as setRtcContext,
@@ -60,9 +60,11 @@ const CallPanel = ({ ticketId, selfId, selfName, selfRole, peerId, peerName, dis
   }, [selectedMic, selectedSpeaker]);
 
   useEffect(() => {
-    if (remoteVideoRef.current && selectedSpeaker && 'setSinkId' in remoteVideoRef.current) {
-      // @ts-ignore
-      remoteVideoRef.current.setSinkId(selectedSpeaker).catch(console.warn);
+    const remoteVideo = remoteVideoRef.current as (HTMLVideoElement & {
+      setSinkId?: (sinkId: string) => Promise<void>;
+    }) | null;
+    if (remoteVideo?.setSinkId && selectedSpeaker) {
+      remoteVideo.setSinkId(selectedSpeaker).catch(console.warn);
     }
   }, [selectedSpeaker]);
 

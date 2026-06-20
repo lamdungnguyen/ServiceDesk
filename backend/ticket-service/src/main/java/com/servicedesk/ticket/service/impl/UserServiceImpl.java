@@ -1,5 +1,6 @@
 package com.servicedesk.ticket.service.impl;
 
+import com.servicedesk.ticket.dto.AuthResponse;
 import com.servicedesk.ticket.dto.UserDetailResponse;
 import com.servicedesk.ticket.dto.UserLoginRequest;
 import com.servicedesk.ticket.dto.UserRegisterRequest;
@@ -11,10 +12,13 @@ import com.servicedesk.ticket.enums.UserStatus;
 import com.servicedesk.ticket.exception.ResourceNotFoundException;
 import com.servicedesk.ticket.repository.TicketRepository;
 import com.servicedesk.ticket.repository.UserRepository;
+import com.servicedesk.ticket.security.JwtService;
 import com.servicedesk.ticket.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
@@ -27,9 +31,11 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final TicketRepository ticketRepository;
+    private final BCryptPasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     @Override
-    public UserResponse register(UserRegisterRequest request) {
+    public AuthResponse register(UserRegisterRequest request) {
         // Check username uniqueness
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException("Username '" + request.getUsername() + "' already exists.");
@@ -42,7 +48,7 @@ public class UserServiceImpl implements UserService {
 
         User user = User.builder()
                 .username(request.getUsername())
-                .password(request.getPassword()) // NOTE: In production use BCryptPasswordEncoder
+                .password(passwordEncoder.encode(request.getPassword()))
                 .name(request.getName())
                 .email(request.getEmail())
                 .phone(request.getPhone())
@@ -53,16 +59,16 @@ public class UserServiceImpl implements UserService {
 
         User saved = userRepository.save(user);
         log.info("User registered: {} with role {} and status {}", saved.getUsername(), saved.getRole(), saved.getStatus());
-        return UserResponse.from(saved);
+        return buildAuthResponse(saved, saved.getStatus() == UserStatus.ACTIVE);
     }
 
     @Override
-    public UserResponse login(UserLoginRequest request) {
+    @Transactional
+    public AuthResponse login(UserLoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid username or password."));
 
-        // NOTE: In production use BCryptPasswordEncoder.matches()
-        if (!user.getPassword().equals(request.getPassword())) {
+        if (!isPasswordMatch(user, request.getPassword())) {
             throw new ResourceNotFoundException("Invalid username or password.");
         }
 
@@ -75,7 +81,7 @@ public class UserServiceImpl implements UserService {
         }
 
         log.info("User logged in: {} ({})", user.getUsername(), user.getRole());
-        return UserResponse.from(user);
+        return buildAuthResponse(user, true);
     }
 
     @Override
@@ -120,5 +126,29 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         userRepository.delete(user);
         return UserResponse.from(user);
+    }
+
+    private boolean isPasswordMatch(User user, String rawPassword) {
+        String storedPassword = user.getPassword();
+        if (storedPassword == null) {
+            return false;
+        }
+
+        if (storedPassword.startsWith("$2a$") || storedPassword.startsWith("$2b$") || storedPassword.startsWith("$2y$")) {
+            return passwordEncoder.matches(rawPassword, storedPassword);
+        }
+
+        if (storedPassword.equals(rawPassword)) {
+            user.setPassword(passwordEncoder.encode(rawPassword));
+            userRepository.save(user);
+            return true;
+        }
+
+        return false;
+    }
+
+    private AuthResponse buildAuthResponse(User user, boolean includeToken) {
+        String token = includeToken ? jwtService.generateToken(user) : null;
+        return new AuthResponse(token, UserResponse.from(user));
     }
 }

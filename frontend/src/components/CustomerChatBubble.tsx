@@ -1,119 +1,211 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, Loader2, Headset, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, type ComponentType } from 'react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  CreditCard,
+  HelpCircle,
+  Loader2,
+  MessageCircle,
+  Minus,
+  Send,
+  Sparkles,
+  UserCircle2,
+  Wrench,
+  X,
+} from 'lucide-react';
 import { useAuth } from '../context/auth';
 import {
+  closeSupportRequest,
   createSupportRequest,
-  getMySupportRequests,
   getConversationMessages,
-  type SupportRequestPayload,
+  getMySupportRequests,
   type DirectMessagePayload,
+  type SupportRequestPayload,
 } from '../api/apiClient';
-import { connectWebSocket, subscribeToDm, sendDmMessage, subscribeToCustomerSupport } from '../services/websocket';
+import { connectWebSocket, sendDmMessage, subscribeToCustomerSupport, subscribeToDm } from '../services/websocket';
 
-function formatTime(iso: string) {
+type TopicId = 'TECHNICAL' | 'BILLING' | 'ACCOUNT' | 'GENERAL';
+
+interface SupportTopic {
+  id: TopicId;
+  title: string;
+  description: string;
+  Icon: ComponentType<{ size?: number; className?: string }>;
+  accent: string;
+}
+
+const SUPPORT_TOPICS: SupportTopic[] = [
+  {
+    id: 'TECHNICAL',
+    title: 'Technical issue',
+    description: 'Apps, devices, network, or system errors',
+    Icon: Wrench,
+    accent: 'bg-sky-50 text-sky-700 border-sky-100',
+  },
+  {
+    id: 'BILLING',
+    title: 'Billing',
+    description: 'Invoices, plans, payment, or receipts',
+    Icon: CreditCard,
+    accent: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  },
+  {
+    id: 'ACCOUNT',
+    title: 'Account access',
+    description: 'Profile, permissions, password, or login help',
+    Icon: UserCircle2,
+    accent: 'bg-violet-50 text-violet-700 border-violet-100',
+  },
+  {
+    id: 'GENERAL',
+    title: 'General question',
+    description: 'Anything else our team can help with',
+    Icon: HelpCircle,
+    accent: 'bg-amber-50 text-amber-700 border-amber-100',
+  },
+];
+
+const TOPIC_BY_ID = SUPPORT_TOPICS.reduce<Record<string, SupportTopic>>((acc, topic) => {
+  acc[topic.id] = topic;
+  return acc;
+}, {});
+
+function formatTime(iso?: string) {
+  if (!iso) return '';
   return new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 }
 
-
-// Support topics
-const SUPPORT_TOPICS = [
-  { id: 'TECHNICAL', label: 'Lỗi kỹ thuật', icon: '🔧', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  { id: 'BILLING', label: 'Thanh toán & Hoá đơn', icon: '💳', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  { id: 'ACCOUNT', label: 'Tài khoản', icon: '👤', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-  { id: 'GENERAL', label: 'Câu hỏi chung', icon: '❓', color: 'bg-amber-100 text-amber-700 border-amber-200' },
-];
+const getInitials = (name?: string) => {
+  if (!name) return 'SD';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'SD';
+  return parts.slice(0, 2).map(part => part.charAt(0).toUpperCase()).join('');
+};
 
 const CustomerChatBubble = () => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [supportRequest, setSupportRequest] = useState<SupportRequestPayload | null>(null);
+  const [lastClosedRequest, setLastClosedRequest] = useState<SupportRequestPayload | null>(null);
   const [messages, setMessages] = useState<DirectMessagePayload[]>([]);
   const [text, setText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<TopicId | null>(null);
   const [description, setDescription] = useState('');
+  const [requestLoading, setRequestLoading] = useState(false);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Fetch my support requests on open
+  const activeTopic = supportRequest?.topic ? TOPIC_BY_ID[supportRequest.topic] : null;
+  const selectedTopicMeta = selectedTopic ? TOPIC_BY_ID[selectedTopic] : null;
+  const hasActiveChat = supportRequest?.status === 'ACTIVE' && Boolean(supportRequest.conversationId);
+  const hasWaitingRequest = supportRequest?.status === 'WAITING';
+
   const fetchMyRequests = useCallback(async () => {
     if (!user) return;
     try {
       const data = await getMySupportRequests();
-      // Find active or waiting request
-      const active = data.find(r => r.status === 'ACTIVE');
-      const waiting = data.find(r => r.status === 'WAITING');
+      const active = data.find(request => request.status === 'ACTIVE');
+      const waiting = data.find(request => request.status === 'WAITING');
+      const closed = data.find(request => request.status === 'CLOSED');
       setSupportRequest(active || waiting || null);
+      setLastClosedRequest(active || waiting ? null : closed || null);
     } catch {
       setSupportRequest(null);
     }
   }, [user]);
 
   useEffect(() => {
-    if (open && user) {
-      fetchMyRequests();
-      connectWebSocket().catch(() => {});
-    }
-  }, [open, user, fetchMyRequests]);
+    if (!open || !user) return;
+    fetchMyRequests();
+    connectWebSocket().catch(() => {});
+  }, [fetchMyRequests, open, user]);
 
-  // Load messages when active conversation exists
-  useEffect(() => {
-    if (!supportRequest?.conversationId || !user || supportRequest.status !== 'ACTIVE') return;
-    let cancelled = false;
-    setLoading(true);
-    getConversationMessages(supportRequest.conversationId, user.id)
-      .then(data => { if (!cancelled) setMessages(data); })
-      .catch(() => { if (!cancelled) setMessages([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-
-    const unsub = subscribeToDm(supportRequest.conversationId, (msg) => {
-      setMessages(prev => {
-        if (prev.some(m => m.id === msg.id)) return prev;
-        return [...prev, msg];
-      });
-    });
-
-    return () => { cancelled = true; unsub(); };
-  }, [supportRequest?.conversationId, supportRequest?.status, user]);
-
-  // Scroll to bottom
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // Subscribe to support request updates (when agent accepts)
   useEffect(() => {
     if (!open || !user) return;
-    const unsub = subscribeToCustomerSupport(user.id, (updatedRequest) => {
+
+    const unsubscribe = subscribeToCustomerSupport(user.id, (updatedRequest) => {
+      if (updatedRequest.status === 'CLOSED') {
+        setLastClosedRequest(updatedRequest);
+        setSupportRequest(null);
+        setMessages([]);
+        setSelectedTopic(null);
+        setDescription('');
+        return;
+      }
+
       setSupportRequest(updatedRequest);
-      // Auto-clear topic selection when request becomes active
+      setLastClosedRequest(null);
       if (updatedRequest.status === 'ACTIVE') {
         setSelectedTopic(null);
         setDescription('');
       }
     });
-    return unsub;
+
+    return unsubscribe;
   }, [open, user]);
 
-  // Handle creating support request
+  useEffect(() => {
+    if (!supportRequest?.conversationId || !user || supportRequest.status !== 'ACTIVE') return;
+
+    let cancelled = false;
+    setMessagesLoading(true);
+    getConversationMessages(supportRequest.conversationId, user.id)
+      .then(data => {
+        if (!cancelled) setMessages(data);
+      })
+      .catch(() => {
+        if (!cancelled) setMessages([]);
+      })
+      .finally(() => {
+        if (!cancelled) setMessagesLoading(false);
+      });
+
+    const unsubscribe = subscribeToDm(supportRequest.conversationId, (msg) => {
+      setMessages(prev => {
+        if (prev.some(item => item.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [supportRequest?.conversationId, supportRequest?.status, user]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, open]);
+
   const handleCreateRequest = async () => {
     if (!selectedTopic || !user) return;
-    setLoading(true);
+
+    setRequestLoading(true);
+    setError(null);
     try {
-      const req = await createSupportRequest({
+      const request = await createSupportRequest({
         topic: selectedTopic,
         description: description.trim() || undefined,
       });
-      setSupportRequest(req);
-    } catch (err) {
-      console.error('Failed to create support request', err);
+      setSupportRequest(request.status === 'CLOSED' ? null : request);
+      setLastClosedRequest(null);
+      setSelectedTopic(null);
+      setDescription('');
+    } catch {
+      setError('We could not send your request. Please try again.');
     } finally {
-      setLoading(false);
+      setRequestLoading(false);
     }
   };
 
-  // Handle send message
   const handleSend = () => {
     if (!text.trim() || !supportRequest?.conversationId || !user) return;
+
     sendDmMessage({
       conversationId: supportRequest.conversationId,
       senderId: user.id,
@@ -124,6 +216,33 @@ const CustomerChatBubble = () => {
     setText('');
   };
 
+  const handleCloseChat = async () => {
+    if (!supportRequest || closing) return;
+
+    setClosing(true);
+    setError(null);
+    try {
+      const closed = await closeSupportRequest(supportRequest.id);
+      setLastClosedRequest(closed);
+      setSupportRequest(null);
+      setMessages([]);
+      setText('');
+    } catch {
+      setError('We could not close this chat. Please try again.');
+    } finally {
+      setClosing(false);
+    }
+  };
+
+  const handleStartAnother = () => {
+    setLastClosedRequest(null);
+    setSupportRequest(null);
+    setMessages([]);
+    setSelectedTopic(null);
+    setDescription('');
+    setError(null);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -131,243 +250,416 @@ const CustomerChatBubble = () => {
     }
   };
 
-
   if (!user || user.role !== 'CUSTOMER') return null;
 
   return (
     <>
-      {/* Floating Button - BOTTOM RIGHT */}
       <button
-        onClick={() => setOpen(!open)}
-        className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 ${
+        type="button"
+        onClick={() => setOpen(prev => !prev)}
+        aria-label={open ? 'Close support messenger' : 'Open support messenger'}
+        className={`fixed bottom-5 right-5 z-50 grid h-14 w-14 place-items-center rounded-full shadow-[0_18px_45px_rgba(15,23,42,0.25)] transition-all duration-200 sm:bottom-6 sm:right-6 ${
           open
-            ? 'bg-slate-600 hover:bg-slate-700 rotate-0'
-            : 'bg-gradient-to-br from-primary-500 to-indigo-600 hover:from-primary-600 hover:to-indigo-700 hover:scale-110'
+            ? 'bg-slate-900 text-white hover:bg-slate-800'
+            : 'bg-[#12312b] text-white hover:-translate-y-0.5 hover:bg-[#17433a]'
         }`}
       >
-        {open ? (
-          <X size={22} className="text-white" />
-        ) : (
-          <>
-            <Headset size={24} className="text-white" />
-            {supportRequest?.status === 'ACTIVE' && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white animate-pulse" />
-            )}
-            {supportRequest?.status === 'WAITING' && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-amber-500 rounded-full border-2 border-white animate-pulse" />
-            )}
-          </>
+        {open ? <X size={22} /> : <MessageCircle size={25} />}
+        {!open && (hasActiveChat || hasWaitingRequest) && (
+          <span
+            className={`absolute right-0 top-0 h-4 w-4 rounded-full border-2 border-white ${
+              hasActiveChat ? 'bg-emerald-400' : 'bg-amber-400'
+            }`}
+          />
         )}
       </button>
 
-      {/* Chat Panel - BOTTOM RIGHT */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 w-[380px] h-[520px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-200">
-          {supportRequest?.status === 'ACTIVE' && supportRequest.conversationId ? (
-            /* ───── Active Chat View ───── */
-            <>
-              {/* Header */}
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                  {supportRequest.agentName?.charAt(0).toUpperCase() || 'A'}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-slate-800 dark:text-white truncate">
-                    {supportRequest.agentName || 'Nhân viên hỗ trợ'}
-                  </p>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[10px] text-emerald-600 font-medium">Đang trực tuyến</span>
-                  </div>
-                </div>
-                <div className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-semibold">
-                  {SUPPORT_TOPICS.find(t => t.id === supportRequest.topic)?.label || supportRequest.topic}
-                </div>
-              </div>
+        <section className="fixed inset-x-3 bottom-24 z-50 flex h-[min(680px,calc(100vh-120px))] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.28)] sm:inset-x-auto sm:right-6 sm:w-[400px] dark:border-slate-700 dark:bg-slate-950">
+          <MessengerHeader
+            title={hasActiveChat ? supportRequest?.agentName || 'Support agent' : 'ServiceDesk Support'}
+            subtitle={hasActiveChat ? 'Online now' : 'We usually reply in a few minutes'}
+            initials={hasActiveChat ? getInitials(supportRequest?.agentName) : 'SD'}
+            onMinimize={() => setOpen(false)}
+          />
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5 bg-slate-50/50 dark:bg-slate-900">
-                {loading ? (
-                  <div className="flex justify-center py-10">
-                    <Loader2 size={20} className="animate-spin text-slate-400" />
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center mx-auto mb-3">
-                      <CheckCircle size={20} className="text-emerald-500" />
-                    </div>
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Đã kết nối!</p>
-                    <p className="text-xs text-slate-400">{supportRequest.agentName || 'Nhân viên'} đã nhận yêu cầu hỗ trợ của bạn.</p>
-                  </div>
-                ) : (
-                  messages.map(msg => {
-                    const isSelf = msg.senderId === user.id;
-                    return (
-                      <div key={msg.id} className={`flex gap-2 ${isSelf ? 'flex-row-reverse' : ''}`}>
-                        {!isSelf && (
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-[10px] font-bold mt-1 flex-shrink-0">
-                            {msg.senderName?.charAt(0).toUpperCase() || '?'}
-                          </div>
-                        )}
-                        <div className={`max-w-[75%] flex flex-col ${isSelf ? 'items-end' : ''}`}>
-                          <div className={`rounded-2xl px-3 py-2 text-sm shadow-sm ${
-                            isSelf
-                              ? 'bg-primary-600 text-white rounded-tr-sm'
-                              : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-tl-sm'
-                          }`}>
-                            {msg.messageType === 'IMAGE' ? (
-                              <img src={`http://localhost:8081${msg.fileUrl}`} alt={msg.fileName} className="max-w-[180px] rounded-lg" />
-                            ) : msg.messageType === 'FILE' ? (
-                              <a href={`http://localhost:8081${msg.fileUrl}`} target="_blank" rel="noreferrer" className={`text-xs underline ${isSelf ? 'text-blue-100' : 'text-blue-600'}`}>
-                                📎 {msg.fileName || 'File'}
-                              </a>
-                            ) : (
-                              <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                            )}
-                          </div>
-                          <span className="text-[9px] text-slate-400 mt-0.5 px-1">{formatTime(msg.createdAt)}</span>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-                <div ref={bottomRef} />
-              </div>
-
-              {/* Input */}
-              <div className="px-3 py-2.5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-end gap-2">
-                <textarea
-                  value={text}
-                  onChange={e => setText(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Nhập tin nhắn..."
-                  rows={1}
-                  className="flex-1 resize-none text-sm px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary-400 text-slate-700 dark:text-slate-200 placeholder-slate-400 max-h-24 border-none"
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={!text.trim()}
-                  className="p-2 bg-primary-600 hover:bg-primary-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white rounded-xl transition-colors flex-shrink-0"
-                >
-                  <Send size={16} />
-                </button>
-              </div>
-            </>
-          ) : supportRequest?.status === 'WAITING' ? (
-            /* ───── Waiting State ───── */
-            <div className="flex-1 flex flex-col">
-              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10">
-                <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                  <Clock size={16} className="text-amber-500" />
-                  Đang chờ nhân viên
-                </h3>
-              </div>
-              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-                <div className="relative mb-4">
-                  <div className="w-20 h-20 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center">
-                    <Loader2 size={32} className="text-amber-500 animate-spin" />
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-white dark:bg-slate-800 border-2 border-amber-200 flex items-center justify-center text-lg">
-                    {SUPPORT_TOPICS.find(t => t.id === supportRequest.topic)?.icon}
-                  </div>
-                </div>
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Yêu cầu của bạn đang được xử lý</p>
-                <p className="text-xs text-slate-400 mb-4 max-w-[260px]">
-                  Chúng tôi đã thông báo đến đội ngũ hỗ trợ. Một nhân viên sẽ tiếp nhận và phản hồi trong thời gian sớm nhất.
-                </p>
-                <div className="px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800">
-                  <p className="text-xs text-amber-700 dark:text-amber-400">
-                    <span className="font-semibold">Chủ đề:</span> {SUPPORT_TOPICS.find(t => t.id === supportRequest.topic)?.label || supportRequest.topic}
-                  </p>
-                </div>
-                {supportRequest.description && (
-                  <p className="mt-3 text-xs text-slate-400 max-w-[260px] line-clamp-2">
-                    "{supportRequest.description}"
-                  </p>
-                )}
-              </div>
-            </div>
-          ) : (
-            /* ───── Topic Selection ───── */
-            <div className="flex-1 flex flex-col">
-              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-primary-50 to-indigo-50 dark:from-primary-900/10 dark:to-indigo-900/10">
-                <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                  <Headset size={16} className="text-primary-500" />
-                  Trung tâm hỗ trợ
-                </h3>
-                <p className="text-[10px] text-slate-400 mt-0.5">Chọn chủ đề bạn cần hỗ trợ</p>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4">
-                <p className="text-xs text-slate-500 mb-3">Bạn cần hỗ trợ về vấn đề gì?</p>
-                <div className="space-y-2 mb-4">
-                  {SUPPORT_TOPICS.map(topic => (
-                    <button
-                      key={topic.id}
-                      onClick={() => setSelectedTopic(topic.id)}
-                      className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
-                        selectedTopic === topic.id
-                          ? `${topic.color} ring-2 ring-offset-1 ring-primary-500/30`
-                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      <span className="text-2xl">{topic.icon}</span>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-800 dark:text-white">{topic.label}</p>
-                      </div>
-                      {selectedTopic === topic.id && (
-                        <CheckCircle size={18} className="ml-auto text-primary-500" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-                
-                {selectedTopic && (
-                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
-                    <p className="text-xs text-slate-500 mb-2">Mô tả thêm (tùy chọn):</p>
-                    <textarea
-                      value={description}
-                      onChange={e => setDescription(e.target.value)}
-                      placeholder="Mô tả ngắn gọn vấn đề bạn gặp phải..."
-                      rows={3}
-                      className="w-full resize-none text-sm px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary-400 text-slate-700 dark:text-slate-200 placeholder-slate-400 border-none mb-3"
-                    />
-                    <button
-                      onClick={handleCreateRequest}
-                      disabled={loading}
-                      className="w-full py-3 bg-gradient-to-r from-primary-500 to-indigo-500 hover:from-primary-600 hover:to-indigo-600 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-all shadow-md flex items-center justify-center gap-2"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 size={16} className="animate-spin" />
-                          Đang gửi...
-                        </>
-                      ) : (
-                        <>
-                          <Send size={16} />
-                          Gửi yêu cầu hỗ trợ
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-                
-                {!selectedTopic && (
-                  <div className="mt-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
-                      <p className="text-[11px] text-slate-500">
-                        Chọn chủ đề phù hợp để chúng tôi có thể chuyển yêu cầu đến đúng chuyên viên hỗ trợ.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+          {error && (
+            <div className="mx-4 mt-3 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
-        </div>
+
+          {hasActiveChat && supportRequest?.conversationId ? (
+            <ActiveChatView
+              agentName={supportRequest.agentName}
+              closing={closing}
+              messages={messages}
+              messagesLoading={messagesLoading}
+              onCloseChat={handleCloseChat}
+              onKeyDown={handleKeyDown}
+              onSend={handleSend}
+              text={text}
+              topic={activeTopic}
+              userId={user.id}
+              valueSetter={setText}
+              bottomRef={bottomRef}
+            />
+          ) : hasWaitingRequest ? (
+            <WaitingView request={supportRequest} topic={activeTopic} onBack={handleStartAnother} />
+          ) : lastClosedRequest ? (
+            <ClosedView request={lastClosedRequest} onStartAnother={handleStartAnother} />
+          ) : (
+            <HomeView
+              description={description}
+              loading={requestLoading}
+              onCreateRequest={handleCreateRequest}
+              onSelectTopic={setSelectedTopic}
+              selectedTopic={selectedTopic}
+              selectedTopicMeta={selectedTopicMeta}
+              setDescription={setDescription}
+            />
+          )}
+        </section>
       )}
     </>
   );
 };
+
+interface HeaderProps {
+  title: string;
+  subtitle: string;
+  initials: string;
+  onMinimize: () => void;
+}
+
+const MessengerHeader = ({ title, subtitle, initials, onMinimize }: HeaderProps) => (
+  <div className="relative overflow-hidden bg-[#12312b] px-4 pb-4 pt-4 text-white">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent_34%)]" />
+    <div className="relative flex items-center gap-3">
+      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15 text-sm font-bold ring-1 ring-white/20">
+        {initials}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold">{title}</p>
+        <div className="mt-1 flex items-center gap-1.5 text-xs text-white/75">
+          <span className="h-2 w-2 rounded-full bg-emerald-300" />
+          <span className="truncate">{subtitle}</span>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onMinimize}
+        aria-label="Minimize support messenger"
+        className="grid h-9 w-9 place-items-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
+      >
+        <Minus size={18} />
+      </button>
+    </div>
+  </div>
+);
+
+interface HomeViewProps {
+  description: string;
+  loading: boolean;
+  onCreateRequest: () => void;
+  onSelectTopic: (topic: TopicId) => void;
+  selectedTopic: TopicId | null;
+  selectedTopicMeta?: SupportTopic | null;
+  setDescription: (value: string) => void;
+}
+
+const HomeView = ({
+  description,
+  loading,
+  onCreateRequest,
+  onSelectTopic,
+  selectedTopic,
+  selectedTopicMeta,
+  setDescription,
+}: HomeViewProps) => (
+  <div className="flex-1 overflow-y-auto bg-slate-50 px-4 py-4 dark:bg-slate-950">
+    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+      <div className="flex items-start gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+          <Sparkles size={19} />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Hi, how can we help?</h2>
+          <p className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-400">
+            Pick a topic and our support team will join the conversation.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div className="mt-4 space-y-2">
+      {SUPPORT_TOPICS.map(topic => {
+        const selected = selectedTopic === topic.id;
+        return (
+          <button
+            key={topic.id}
+            type="button"
+            onClick={() => onSelectTopic(topic.id)}
+            className={`group flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md dark:bg-slate-900 dark:hover:border-slate-600 ${
+              selected ? 'border-[#12312b] ring-2 ring-[#12312b]/10 dark:border-emerald-400' : 'border-slate-200 dark:border-slate-800'
+            }`}
+          >
+            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border ${topic.accent}`}>
+              <topic.Icon size={18} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-slate-900 dark:text-white">{topic.title}</span>
+              <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{topic.description}</span>
+            </span>
+            {selected ? (
+              <CheckCircle2 size={18} className="text-[#12312b] dark:text-emerald-300" />
+            ) : (
+              <ChevronRight size={18} className="text-slate-300 transition group-hover:text-slate-500" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+
+    {selectedTopicMeta && (
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
+          <selectedTopicMeta.Icon size={16} />
+          {selectedTopicMeta.title}
+        </div>
+        <textarea
+          value={description}
+          onChange={event => setDescription(event.target.value)}
+          rows={4}
+          placeholder="Add a short note so the agent has context..."
+          className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#12312b] focus:ring-2 focus:ring-[#12312b]/10 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+        />
+        <button
+          type="button"
+          onClick={onCreateRequest}
+          disabled={loading}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#12312b] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#17433a] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+          {loading ? 'Sending request...' : 'Start chat'}
+        </button>
+      </div>
+    )}
+  </div>
+);
+
+interface WaitingViewProps {
+  request: SupportRequestPayload;
+  topic?: SupportTopic | null;
+  onBack: () => void;
+}
+
+const WaitingView = ({ request, topic, onBack }: WaitingViewProps) => {
+  const TopicIcon = topic?.Icon || HelpCircle;
+
+  return (
+    <div className="flex flex-1 flex-col bg-slate-50 px-4 py-4 dark:bg-slate-950">
+      <button
+        type="button"
+        onClick={onBack}
+        className="mb-4 inline-flex w-fit items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-900 dark:hover:text-slate-200"
+      >
+        <ArrowLeft size={14} />
+        New topic
+      </button>
+      <div className="flex flex-1 flex-col items-center justify-center text-center">
+        <div className="relative">
+          <div className="grid h-24 w-24 place-items-center rounded-full bg-amber-50 text-amber-600 ring-8 ring-white dark:bg-amber-950/40 dark:text-amber-300 dark:ring-slate-900">
+            <Clock3 size={34} />
+          </div>
+          <span className="absolute -bottom-1 -right-1 grid h-10 w-10 place-items-center rounded-full border-4 border-slate-50 bg-white text-slate-700 shadow-sm dark:border-slate-950 dark:bg-slate-900 dark:text-slate-200">
+            <TopicIcon size={18} />
+          </span>
+        </div>
+        <h2 className="mt-7 text-lg font-semibold text-slate-950 dark:text-white">You are in the queue</h2>
+        <p className="mt-2 max-w-[300px] text-sm leading-6 text-slate-500 dark:text-slate-400">
+          We have notified the support team. An agent will join this chat as soon as possible.
+        </p>
+        <div className="mt-5 rounded-2xl border border-amber-100 bg-white px-4 py-3 text-left shadow-sm dark:border-amber-900/40 dark:bg-slate-900">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-300">Request #{request.id}</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{topic?.title || request.topic}</p>
+          {request.description && (
+            <p className="mt-1 max-w-[280px] text-xs leading-5 text-slate-500 dark:text-slate-400">{request.description}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface ActiveChatViewProps {
+  agentName?: string;
+  closing: boolean;
+  messages: DirectMessagePayload[];
+  messagesLoading: boolean;
+  onCloseChat: () => void;
+  onKeyDown: (event: React.KeyboardEvent) => void;
+  onSend: () => void;
+  text: string;
+  topic?: SupportTopic | null;
+  userId: number;
+  valueSetter: (value: string) => void;
+  bottomRef: React.RefObject<HTMLDivElement | null>;
+}
+
+const ActiveChatView = ({
+  agentName,
+  closing,
+  messages,
+  messagesLoading,
+  onCloseChat,
+  onKeyDown,
+  onSend,
+  text,
+  topic,
+  userId,
+  valueSetter,
+  bottomRef,
+}: ActiveChatViewProps) => (
+  <div className="flex min-h-0 flex-1 flex-col bg-slate-50 dark:bg-slate-950">
+    <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          {topic && (
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-semibold ${topic.accent}`}>
+              <topic.Icon size={12} />
+              {topic.title}
+            </span>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          Chatting with {agentName || 'support'}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onCloseChat}
+        disabled={closing}
+        className="shrink-0 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-red-900 dark:hover:bg-red-950/40"
+      >
+        {closing ? 'Ending...' : 'End chat'}
+      </button>
+    </div>
+
+    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+      {messagesLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 size={22} className="animate-spin text-slate-400" />
+        </div>
+      ) : messages.length === 0 ? (
+        <div className="mx-auto mt-10 max-w-[280px] rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+          <CheckCircle2 size={28} className="mx-auto text-emerald-500" />
+          <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">You are connected</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            Send a message and the agent will reply here.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {messages.map(message => (
+            <CustomerMessageBubble key={message.id} message={message} isSelf={message.senderId === userId} />
+          ))}
+        </div>
+      )}
+      <div ref={bottomRef} />
+    </div>
+
+    <div className="border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:border-[#12312b] focus-within:ring-2 focus-within:ring-[#12312b]/10 dark:border-slate-700 dark:bg-slate-950">
+        <textarea
+          value={text}
+          onChange={event => valueSetter(event.target.value)}
+          onKeyDown={onKeyDown}
+          rows={1}
+          placeholder="Write a message..."
+          className="max-h-28 min-h-[36px] flex-1 resize-none bg-transparent px-2 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
+        />
+        <button
+          type="button"
+          onClick={onSend}
+          disabled={!text.trim()}
+          aria-label="Send message"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#12312b] text-white transition hover:bg-[#17433a] disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700"
+        >
+          <Send size={16} />
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const CustomerMessageBubble = ({ message, isSelf }: { message: DirectMessagePayload; isSelf: boolean }) => {
+  const isFile = message.messageType !== 'TEXT';
+  const isImage = message.messageType === 'IMAGE';
+  const isVoice = message.messageType === 'VOICE';
+
+  return (
+    <div className={`flex gap-2 ${isSelf ? 'flex-row-reverse' : 'flex-row'}`}>
+      {!isSelf && (
+        <div className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#12312b] text-[10px] font-bold text-white">
+          {getInitials(message.senderName).slice(0, 2)}
+        </div>
+      )}
+      <div className={`flex max-w-[78%] flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
+        {!isSelf && <span className="mb-1 px-1 text-[10px] font-medium text-slate-500">{message.senderName}</span>}
+        <div
+          className={`rounded-2xl px-3 py-2 text-sm shadow-sm ${
+            isSelf
+              ? 'rounded-br-md bg-[#12312b] text-white'
+              : 'rounded-bl-md border border-slate-200 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100'
+          }`}
+        >
+          {isVoice ? (
+            <audio controls src={`http://localhost:8081${message.fileUrl}`} className="h-8 max-w-[210px]" />
+          ) : isImage ? (
+            <img src={`http://localhost:8081${message.fileUrl}`} alt={message.fileName} className="max-w-[210px] rounded-xl" />
+          ) : isFile ? (
+            <a
+              href={`http://localhost:8081${message.fileUrl}`}
+              target="_blank"
+              rel="noreferrer"
+              className={`text-xs font-semibold underline ${isSelf ? 'text-emerald-50' : 'text-sky-600'}`}
+            >
+              {message.fileName || 'Attachment'}
+            </a>
+          ) : (
+            <p className="whitespace-pre-wrap break-words leading-5">{message.content}</p>
+          )}
+        </div>
+        <span className="mt-1 px-1 text-[10px] text-slate-400">{formatTime(message.createdAt)}</span>
+      </div>
+    </div>
+  );
+};
+
+interface ClosedViewProps {
+  request: SupportRequestPayload;
+  onStartAnother: () => void;
+}
+
+const ClosedView = ({ request, onStartAnother }: ClosedViewProps) => (
+  <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 px-6 py-8 text-center dark:bg-slate-950">
+    <div className="grid h-20 w-20 place-items-center rounded-full bg-emerald-50 text-emerald-600 ring-8 ring-white dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-slate-900">
+      <CheckCircle2 size={34} />
+    </div>
+    <h2 className="mt-6 text-lg font-semibold text-slate-950 dark:text-white">Chat ended</h2>
+    <p className="mt-2 max-w-[280px] text-sm leading-6 text-slate-500 dark:text-slate-400">
+      Your support request #{request.id} is closed. You can start a new chat whenever you need help.
+    </p>
+    <button
+      type="button"
+      onClick={onStartAnother}
+      className="mt-6 rounded-xl bg-[#12312b] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#17433a]"
+    >
+      Start another chat
+    </button>
+  </div>
+);
 
 export default CustomerChatBubble;

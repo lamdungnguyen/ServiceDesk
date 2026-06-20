@@ -97,6 +97,9 @@ const DEFAULT_SETTINGS: SystemSettings = {
   maxResponseTimeMinutes: 60,
   escalationThresholdMinutes: 240,
   slaWarningThresholdMinutes: 60,
+  businessStartTime: '08:00',
+  businessEndTime: '17:00',
+  workDays: 'MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY',
   sessionTimeoutMinutes: 30,
   agentCanViewAllTickets: false,
   agentCanExportData: false,
@@ -269,7 +272,48 @@ const SettingsPage = () => {
 
       {/* ── SLA & Alerts Tab ── */}
       {activeTab === 'sla' && (
-        <Section title="SLA Thresholds">
+        <>
+          <Section title="Business Hours">
+            <SettingRow
+              icon={<Clock size={18} />}
+              label="Business Start Time"
+              description="Start of business hours (HH:mm)"
+            >
+              <input
+                type="time"
+                value={form.businessStartTime}
+                onChange={e => set('businessStartTime', e.target.value)}
+                className="px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              />
+            </SettingRow>
+            <SettingRow
+              icon={<Clock size={18} />}
+              label="Business End Time"
+              description="End of business hours (HH:mm)"
+            >
+              <input
+                type="time"
+                value={form.businessEndTime}
+                onChange={e => set('businessEndTime', e.target.value)}
+                className="px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              />
+            </SettingRow>
+            <SettingRow
+              icon={<Clock size={18} />}
+              label="Work Days"
+              description="Comma-separated list of working days"
+            >
+              <input
+                type="text"
+                value={form.workDays}
+                onChange={e => set('workDays', e.target.value.toUpperCase())}
+                placeholder="MONDAY,TUESDAY,WEDNESDAY..."
+                className="w-64 px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              />
+            </SettingRow>
+          </Section>
+
+          <Section title="SLA Thresholds">
           <SettingRow
             icon={<Clock size={18} />}
             label="Max Response Time"
@@ -292,6 +336,7 @@ const SettingsPage = () => {
             <NumberInput value={form.escalationThresholdMinutes} onChange={v => set('escalationThresholdMinutes', v)} unit="minutes" />
           </SettingRow>
         </Section>
+        </>
       )}
 
       {/* ── Security Tab ── */}

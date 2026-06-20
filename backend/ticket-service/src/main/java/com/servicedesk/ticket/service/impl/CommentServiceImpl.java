@@ -4,15 +4,17 @@ import com.servicedesk.ticket.dto.CommentCreateRequest;
 import com.servicedesk.ticket.dto.CommentResponse;
 import com.servicedesk.ticket.entity.Comment;
 import com.servicedesk.ticket.entity.Ticket;
+import com.servicedesk.ticket.enums.TicketAuditAction;
 import com.servicedesk.ticket.enums.UserRole;
 import com.servicedesk.ticket.exception.ResourceNotFoundException;
-import com.servicedesk.ticket.exception.UnauthorizedAccessException;
 import com.servicedesk.ticket.repository.CommentRepository;
+import com.servicedesk.ticket.repository.TicketRepository;
 import com.servicedesk.ticket.repository.UserRepository;
 import com.servicedesk.ticket.security.UserContext;
-import com.servicedesk.ticket.repository.TicketRepository;
+import com.servicedesk.ticket.service.AccessControlService;
 import com.servicedesk.ticket.service.CommentService;
 import com.servicedesk.ticket.service.NotificationService;
+import com.servicedesk.ticket.service.TicketAuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +29,8 @@ public class CommentServiceImpl implements CommentService {
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final AccessControlService accessControlService;
+    private final TicketAuditLogService ticketAuditLogService;
 
     @Override
     public CommentResponse addComment(CommentCreateRequest request) {
@@ -42,11 +46,17 @@ public class CommentServiceImpl implements CommentService {
                 .build();
 
         Comment savedComment = commentRepository.save(comment);
+        ticketAuditLogService.log(
+                ticket.getId(),
+                TicketAuditAction.COMMENT_ADDED,
+                "commentId",
+                null,
+                String.valueOf(savedComment.getId()),
+                "Comment added"
+        );
 
-        // Notification Logic
-        Long currentUserId = UserContext.getUserId();
         UserRole role = UserContext.getUserRole();
-        
+
         if (role == UserRole.CUSTOMER && ticket.getAssigneeId() != null) {
             notificationService.createNotification(
                     ticket.getAssigneeId(),
@@ -74,15 +84,15 @@ public class CommentServiceImpl implements CommentService {
         checkTicketAccess(ticket);
 
         List<Comment> comments = commentRepository.findByTicketId(ticketId);
-        
+
         List<Long> userIds = comments.stream()
                 .map(Comment::getUserId)
                 .distinct()
                 .collect(Collectors.toList());
-                
+
         java.util.Map<Long, String> userNames = userRepository.findAllById(userIds).stream()
                 .collect(Collectors.toMap(
-                        com.servicedesk.ticket.entity.User::getId, 
+                        com.servicedesk.ticket.entity.User::getId,
                         com.servicedesk.ticket.entity.User::getName
                 ));
 
@@ -111,14 +121,6 @@ public class CommentServiceImpl implements CommentService {
     }
 
     private void checkTicketAccess(Ticket ticket) {
-        Long userId = UserContext.getUserId();
-        UserRole role = UserContext.getUserRole();
-        
-        if (role == UserRole.CUSTOMER && !ticket.getReporterId().equals(userId)) {
-            throw new UnauthorizedAccessException("You can only access comments for your own tickets");
-        }
-        if (role == UserRole.AGENT && (ticket.getAssigneeId() == null || !ticket.getAssigneeId().equals(userId))) {
-            throw new UnauthorizedAccessException("You can only access comments for tickets assigned to you");
-        }
+        accessControlService.requireCanViewTicket(ticket);
     }
 }

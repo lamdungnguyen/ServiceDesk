@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import com.servicedesk.ticket.enums.TicketStatus;
 import com.servicedesk.ticket.enums.Priority;
 
@@ -26,4 +27,5 @@ public class TicketResponse {
     private Boolean escalated;
     private LocalDateTime resolvedAt;
     private Integer commentCount;
+    private List<TicketCustomFieldValueDto> customFields;
 }

@@ -37,7 +37,7 @@ const SLA_OPTIONS = [
 
 const FilterBar = ({ filters, onFilterChange }: FilterBarProps) => {
   const [localKeyword, setLocalKeyword] = useState(filters.keyword);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync external keyword changes
   useEffect(() => {

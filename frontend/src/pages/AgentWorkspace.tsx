@@ -127,11 +127,7 @@ const AgentWorkspace = () => {
     }
   }, [searchParams, allTickets, setSearchParams]);
 
-  // Polling for real-time updates
-  useEffect(() => {
-    const interval = setInterval(fetchTickets, 10000);
-    return () => clearInterval(interval);
-  }, [fetchTickets]);
+
 
   // Handle incoming WS message
   const handleWsMessage = useCallback((msg: ChatMessagePayload) => {

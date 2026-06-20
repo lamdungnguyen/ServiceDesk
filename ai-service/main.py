@@ -28,7 +28,7 @@ class AnalyzeResponse(BaseModel):
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_ticket(request: AnalyzeRequest):
+def analyze_ticket(request: AnalyzeRequest):
     """
     Phân tích ticket IT support.
     Trả về category, priority, sentiment + metadata (source, confidence).

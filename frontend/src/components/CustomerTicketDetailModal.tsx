@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Loader2, Calendar, Clock, AlertCircle, MessageSquare, Send, Tag, Flag, Star } from 'lucide-react';
 import type { Ticket } from '../types/ticket';
-import { getComments, submitRating, getRatingByTicket, type Comment, type RatingPayload } from '../api/apiClient';
+import { getComments, getErrorMessage, submitRating, getRatingByTicket, type Comment, type RatingPayload } from '../api/apiClient';
 import { useAuth } from '../context/auth';
 import { subscribeToTicket, sendChatMessage, type ChatMessagePayload } from '../services/websocket';
 import CallPanel from './CallPanel';
@@ -120,8 +120,8 @@ const CustomerTicketDetailModal = ({ ticket, isOpen, onClose }: CustomerTicketDe
     try {
       const result = await submitRating(ticket.id, selectedRating, ratingComment || undefined);
       setExistingRating(result);
-    } catch (err: any) {
-      setRatingError(err?.response?.data?.message || err?.message || 'Failed to submit rating');
+    } catch (err: unknown) {
+      setRatingError(getErrorMessage(err, 'Failed to submit rating'));
     } finally {
       setSubmittingRating(false);
     }

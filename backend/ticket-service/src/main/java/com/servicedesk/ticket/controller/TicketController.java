@@ -1,9 +1,10 @@
 package com.servicedesk.ticket.controller;
 
+import com.servicedesk.ticket.dto.TicketAuditLogResponse;
 import com.servicedesk.ticket.dto.TicketCreateRequest;
 import com.servicedesk.ticket.dto.TicketResponse;
-import com.servicedesk.ticket.service.TicketService;
 import com.servicedesk.ticket.enums.TicketStatus;
+import com.servicedesk.ticket.service.TicketService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,11 @@ public class TicketController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/{id}/audit-logs")
+    public ResponseEntity<List<TicketAuditLogResponse>> getAuditLogs(@PathVariable Long id) {
+        return ResponseEntity.ok(ticketService.getAuditLogsForTicket(id));
+    }
+
     @GetMapping
     public ResponseEntity<List<TicketResponse>> getAllTickets(
             @RequestParam(required = false) String status,
@@ -39,7 +45,6 @@ public class TicketController {
             @RequestParam(required = false) Boolean overdue,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Boolean assignedToMe) {
-        // Nếu có bất kỳ filter nào (bao gồm assignedToMe) → dùng getFilteredTickets
         if (status != null || priority != null || overdue != null
                 || (keyword != null && !keyword.trim().isEmpty())
                 || Boolean.TRUE.equals(assignedToMe)) {
@@ -57,14 +62,14 @@ public class TicketController {
         if (newStatus == null || newStatus.trim().isEmpty()) {
             throw new IllegalArgumentException("Status is required");
         }
-        
+
         TicketStatus statusEnum;
         try {
             statusEnum = TicketStatus.valueOf(newStatus.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid status value: " + newStatus);
         }
-        
+
         TicketResponse response = ticketService.updateTicketStatus(id, statusEnum);
         return ResponseEntity.ok(response);
     }
@@ -82,7 +87,7 @@ public class TicketController {
         if (assigneeId == null) {
             throw new IllegalArgumentException("assigneeId is required");
         }
-        
+
         TicketResponse response = ticketService.assignTicket(id, assigneeId);
         return ResponseEntity.ok(response);
     }

@@ -1,3 +1,10 @@
+export interface TicketCustomFieldValue {
+  fieldId: number;
+  fieldName: string;
+  fieldType: string;
+  value: string;
+}
+
 export interface Ticket {
   id: number;
   title: string;
@@ -15,12 +22,24 @@ export interface Ticket {
   escalated: boolean;
   resolvedAt: string | null;
   commentCount?: number;
+  customFields?: TicketCustomFieldValue[];
 }
 
 export interface TicketCreateRequest {
   title: string;
   description: string;
   priority: string;
+  category?: string;
+  customFields?: { fieldId: number; value: string }[];
   reporterName?: string;
   reporterEmail?: string;
+}
+
+export interface CustomFieldConfig {
+  id: number;
+  category: string;
+  fieldName: string;
+  fieldType: string;
+  options: string;
+  isRequired: boolean;
 }

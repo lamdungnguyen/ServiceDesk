@@ -1,10 +1,14 @@
 package com.servicedesk.ticket.controller;
 
+import com.servicedesk.ticket.dto.AuthResponse;
 import com.servicedesk.ticket.dto.UserDetailResponse;
 import com.servicedesk.ticket.dto.UserLoginRequest;
 import com.servicedesk.ticket.dto.UserRegisterRequest;
 import com.servicedesk.ticket.dto.UserResponse;
+import com.servicedesk.ticket.enums.UserRole;
 import com.servicedesk.ticket.enums.UserStatus;
+import com.servicedesk.ticket.security.UserContext;
+import com.servicedesk.ticket.service.AccessControlService;
 import com.servicedesk.ticket.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,46 +25,47 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final AccessControlService accessControlService;
 
-    // POST /api/v1/users/register
     @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody UserRegisterRequest request) {
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody UserRegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.register(request));
     }
 
-    // POST /api/v1/users/login
     @PostMapping("/login")
-    public ResponseEntity<UserResponse> login(@Valid @RequestBody UserLoginRequest request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody UserLoginRequest request) {
         return ResponseEntity.ok(userService.login(request));
     }
 
-    // GET /api/v1/users  (Admin only)
     @GetMapping
     public ResponseEntity<List<UserResponse>> getAllUsers(@RequestParam(required = false) com.servicedesk.ticket.enums.UserRole role) {
+        accessControlService.requireRole(UserRole.AGENT, UserRole.ADMIN);
         if (role != null) {
             return ResponseEntity.ok(userService.getUsersByRole(role));
         }
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
-    // GET /api/v1/users/{id}
     @GetMapping("/{id}")
     public ResponseEntity<UserDetailResponse> getUserById(@PathVariable Long id) {
+        if (!id.equals(UserContext.getUserId())) {
+            accessControlService.requireRole(UserRole.AGENT, UserRole.ADMIN);
+        }
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
-    // PATCH /api/v1/users/{id}/status  (Admin only)
     @PatchMapping("/{id}/status")
     public ResponseEntity<UserResponse> updateStatus(
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
+        accessControlService.requireRole(UserRole.ADMIN);
         UserStatus status = UserStatus.valueOf(body.get("status").toUpperCase());
         return ResponseEntity.ok(userService.updateStatus(id, status));
     }
 
-    // DELETE /api/v1/users/{id}  (Admin only)
     @DeleteMapping("/{id}")
     public ResponseEntity<UserResponse> deleteUser(@PathVariable Long id) {
+        accessControlService.requireRole(UserRole.ADMIN);
         return ResponseEntity.ok(userService.deleteUser(id));
     }
 }
