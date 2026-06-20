@@ -52,7 +52,7 @@ function ensurePeerConnection(): RTCPeerConnection {
 }
 
 async function attachLocalStream(): Promise<MediaStream> {
-  if (localStream) return localStream; // Prevent re-prompting
+  if (localStream) return localStream;
 
   const constraints = currentMicId ? { audio: { deviceId: { exact: currentMicId } }, video: false } : { audio: true, video: false };
   localStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -73,23 +73,55 @@ async function attachLocalStream(): Promise<MediaStream> {
 
 export async function setAudioInputDevice(deviceId: string): Promise<void> {
   currentMicId = deviceId;
-  if (peerConnection && peerConnection.connectionState !== 'closed') {
-    await attachLocalStream();
 
-    // Renegotiate to update track
-    const offer = await peerConnection.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-    await peerConnection.setLocalDescription(offer);
-    if (currentCtx) {
-      sendCallSignal({
-        type: 'OFFER',
-        ticketId: currentCtx.ticketId,
-        senderId: currentCtx.selfId,
-        senderName: currentCtx.selfName,
-        senderRole: currentCtx.selfRole,
-        targetUserId: currentCtx.targetUserId,
-        payload: JSON.stringify(offer),
-      });
+  if (!peerConnection || peerConnection.connectionState === 'closed') {
+    // No active call, just update the mic ID for later
+    return;
+  }
+
+  if (localStream) {
+    // Stop old audio tracks
+    localStream.getAudioTracks().forEach(t => t.stop());
+    localStream.getAudioTracks().forEach(t => localStream!.removeTrack(t));
+
+    // Get new audio stream with the new device
+    const newAudioStream = await navigator.mediaDevices.getUserMedia({
+      audio: { deviceId: { exact: deviceId } },
+      video: false,
+    });
+
+    const newAudioTrack = newAudioStream.getAudioTracks()[0];
+    if (newAudioTrack) {
+      localStream.addTrack(newAudioTrack);
     }
+
+    // Replace the audio track in the peer connection
+    const audioSender = peerConnection.getSenders().find(s => s.track?.kind === 'audio');
+    if (audioSender && newAudioTrack) {
+      await audioSender.replaceTrack(newAudioTrack);
+    }
+
+    if (currentCallbacks?.onLocalStream) {
+      currentCallbacks.onLocalStream(localStream);
+    }
+  } else {
+    // No local stream yet, just update the mic ID; attachLocalStream will use it later
+    return;
+  }
+
+  // Renegotiate to update the remote with new audio track (optional but kept for consistency)
+  const offer = await peerConnection.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+  await peerConnection.setLocalDescription(offer);
+  if (currentCtx) {
+    sendCallSignal({
+      type: 'OFFER',
+      ticketId: currentCtx.ticketId,
+      senderId: currentCtx.selfId,
+      senderName: currentCtx.selfName,
+      senderRole: currentCtx.selfRole,
+      targetUserId: currentCtx.targetUserId,
+      payload: JSON.stringify(offer),
+    });
   }
 }
 
@@ -197,8 +229,8 @@ export async function setVideoEnabled(enabled: boolean): Promise<void> {
 
       localStream.addTrack(videoTrack);
 
-      const videoTransceiver = peerConnection.getTransceivers().find(t => t.receiver.track.kind === 'video');
-      if (videoTransceiver) {
+      const videoTransceiver = peerConnection?.getTransceivers().find(t => t.receiver.track.kind === 'video');
+      if (videoTransceiver && videoTrack) {
         await videoTransceiver.sender.replaceTrack(videoTrack);
       }
 
@@ -210,12 +242,13 @@ export async function setVideoEnabled(enabled: boolean): Promise<void> {
       throw err;
     }
   } else {
+    if (!localStream) return;
     const videoTrack = localStream.getVideoTracks()[0];
     if (videoTrack) {
       videoTrack.stop();
       localStream.removeTrack(videoTrack);
 
-      const videoTransceiver = peerConnection.getTransceivers().find(t => t.receiver.track.kind === 'video');
+      const videoTransceiver = peerConnection?.getTransceivers().find(t => t.receiver.track.kind === 'video');
       if (videoTransceiver) {
         await videoTransceiver.sender.replaceTrack(null);
       }
@@ -235,8 +268,8 @@ export async function startScreenShare(onEndedCallback?: () => void): Promise<vo
     screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
     const screenTrack = screenStream.getVideoTracks()[0];
 
-    const videoTransceiver = peerConnection.getTransceivers().find(t => t.receiver.track.kind === 'video');
-    if (videoTransceiver) {
+    const videoTransceiver = peerConnection?.getTransceivers().find(t => t.receiver.track.kind === 'video');
+    if (videoTransceiver && screenTrack) {
       await videoTransceiver.sender.replaceTrack(screenTrack);
     }
 
@@ -263,7 +296,7 @@ export async function stopScreenShare(): Promise<void> {
     screenStream = null;
   }
 
-  const videoTransceiver = peerConnection.getTransceivers().find(t => t.receiver.track.kind === 'video');
+  const videoTransceiver = peerConnection?.getTransceivers().find(t => t.receiver.track.kind === 'video');
   const localVideoTrack = localStream.getVideoTracks()[0] || null;
 
   if (videoTransceiver) {
