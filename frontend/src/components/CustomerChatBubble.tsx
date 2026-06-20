@@ -1,3 +1,4 @@
+```typescript
 import { useState, useEffect, useRef, useCallback, type ComponentType } from 'react';
 import {
   AlertCircle,
@@ -26,6 +27,8 @@ import {
   type SupportRequestPayload,
 } from '../api/apiClient';
 import { connectWebSocket, sendDmMessage, subscribeToCustomerSupport, subscribeToDm } from '../services/websocket';
+
+const FILE_BASE_URL = process.env.REACT_APP_FILE_SERVER_URL || '';
 
 type TopicId = 'TECHNICAL' | 'BILLING' | 'ACCOUNT' | 'GENERAL';
 
@@ -523,143 +526,3 @@ const ActiveChatView = ({
   bottomRef,
 }: ActiveChatViewProps) => (
   <div className="flex min-h-0 flex-1 flex-col bg-slate-50 dark:bg-slate-950">
-    <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          {topic && (
-            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-semibold ${topic.accent}`}>
-              <topic.Icon size={12} />
-              {topic.title}
-            </span>
-          )}
-        </div>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          Chatting with {agentName || 'support'}
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={onCloseChat}
-        disabled={closing}
-        className="shrink-0 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-red-900 dark:hover:bg-red-950/40"
-      >
-        {closing ? 'Ending...' : 'End chat'}
-      </button>
-    </div>
-
-    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-      {messagesLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 size={22} className="animate-spin text-slate-400" />
-        </div>
-      ) : messages.length === 0 ? (
-        <div className="mx-auto mt-10 max-w-[280px] rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-          <CheckCircle2 size={28} className="mx-auto text-emerald-500" />
-          <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">You are connected</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-            Send a message and the agent will reply here.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {messages.map(message => (
-            <CustomerMessageBubble key={message.id} message={message} isSelf={message.senderId === userId} />
-          ))}
-        </div>
-      )}
-      <div ref={bottomRef} />
-    </div>
-
-    <div className="border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:border-[#12312b] focus-within:ring-2 focus-within:ring-[#12312b]/10 dark:border-slate-700 dark:bg-slate-950">
-        <textarea
-          value={text}
-          onChange={event => valueSetter(event.target.value)}
-          onKeyDown={onKeyDown}
-          rows={1}
-          placeholder="Write a message..."
-          className="max-h-28 min-h-[36px] flex-1 resize-none bg-transparent px-2 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
-        />
-        <button
-          type="button"
-          onClick={onSend}
-          disabled={!text.trim()}
-          aria-label="Send message"
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#12312b] text-white transition hover:bg-[#17433a] disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700"
-        >
-          <Send size={16} />
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-const CustomerMessageBubble = ({ message, isSelf }: { message: DirectMessagePayload; isSelf: boolean }) => {
-  const isFile = message.messageType !== 'TEXT';
-  const isImage = message.messageType === 'IMAGE';
-  const isVoice = message.messageType === 'VOICE';
-
-  return (
-    <div className={`flex gap-2 ${isSelf ? 'flex-row-reverse' : 'flex-row'}`}>
-      {!isSelf && (
-        <div className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#12312b] text-[10px] font-bold text-white">
-          {getInitials(message.senderName).slice(0, 2)}
-        </div>
-      )}
-      <div className={`flex max-w-[78%] flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
-        {!isSelf && <span className="mb-1 px-1 text-[10px] font-medium text-slate-500">{message.senderName}</span>}
-        <div
-          className={`rounded-2xl px-3 py-2 text-sm shadow-sm ${
-            isSelf
-              ? 'rounded-br-md bg-[#12312b] text-white'
-              : 'rounded-bl-md border border-slate-200 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100'
-          }`}
-        >
-          {isVoice ? (
-            <audio controls src={`http://localhost:8081${message.fileUrl}`} className="h-8 max-w-[210px]" />
-          ) : isImage ? (
-            <img src={`http://localhost:8081${message.fileUrl}`} alt={message.fileName} className="max-w-[210px] rounded-xl" />
-          ) : isFile ? (
-            <a
-              href={`http://localhost:8081${message.fileUrl}`}
-              target="_blank"
-              rel="noreferrer"
-              className={`text-xs font-semibold underline ${isSelf ? 'text-emerald-50' : 'text-sky-600'}`}
-            >
-              {message.fileName || 'Attachment'}
-            </a>
-          ) : (
-            <p className="whitespace-pre-wrap break-words leading-5">{message.content}</p>
-          )}
-        </div>
-        <span className="mt-1 px-1 text-[10px] text-slate-400">{formatTime(message.createdAt)}</span>
-      </div>
-    </div>
-  );
-};
-
-interface ClosedViewProps {
-  request: SupportRequestPayload;
-  onStartAnother: () => void;
-}
-
-const ClosedView = ({ request, onStartAnother }: ClosedViewProps) => (
-  <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 px-6 py-8 text-center dark:bg-slate-950">
-    <div className="grid h-20 w-20 place-items-center rounded-full bg-emerald-50 text-emerald-600 ring-8 ring-white dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-slate-900">
-      <CheckCircle2 size={34} />
-    </div>
-    <h2 className="mt-6 text-lg font-semibold text-slate-950 dark:text-white">Chat ended</h2>
-    <p className="mt-2 max-w-[280px] text-sm leading-6 text-slate-500 dark:text-slate-400">
-      Your support request #{request.id} is closed. You can start a new chat whenever you need help.
-    </p>
-    <button
-      type="button"
-      onClick={onStartAnother}
-      className="mt-6 rounded-xl bg-[#12312b] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#17433a]"
-    >
-      Start another chat
-    </button>
-  </div>
-);
-
-export default CustomerChatBubble;
