@@ -16,6 +16,9 @@ import com.servicedesk.ticket.security.JwtService;
 import com.servicedesk.ticket.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,12 +39,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public AuthResponse register(UserRegisterRequest request) {
-        // Block AGENT/ADMIN self-registration
         if (request.getRole() == UserRole.AGENT || request.getRole() == UserRole.ADMIN) {
             throw new IllegalArgumentException("Only customers can self-register. Agents and Admins must be created by an Administrator.");
         }
 
-        // Check username uniqueness
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException("Username '" + request.getUsername() + "' already exists.");
         }
@@ -52,7 +53,7 @@ public class UserServiceImpl implements UserService {
                 .name(request.getName())
                 .email(request.getEmail())
                 .phone(request.getPhone())
-                .role(UserRole.CUSTOMER) // Force role
+                .role(UserRole.CUSTOMER)
                 .status(UserStatus.ACTIVE)
                 .build();
 
@@ -63,6 +64,12 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse createUser(UserRegisterRequest request) {
+        // Authorization: only ADMIN can create users with roles other than CUSTOMER
+        User currentUser = getCurrentUser();
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            throw new AccessDeniedException("Only administrators can create users.");
+        }
+
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException("Username '" + request.getUsername() + "' already exists.");
         }
@@ -75,7 +82,7 @@ public class UserServiceImpl implements UserService {
                 .phone(request.getPhone())
                 .role(request.getRole())
                 .agentType(request.getRole() == UserRole.AGENT ? request.getAgentType() : null)
-                .status(UserStatus.ACTIVE) // Admin created users are always active
+                .status(UserStatus.ACTIVE)
                 .build();
 
         User saved = userRepository.save(user);
@@ -85,16 +92,22 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse updateUserRole(Long userId, UserRole role, String agentType) {
+        // Authorization: only ADMIN can update roles
+        User currentUser = getCurrentUser();
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            throw new AccessDeniedException("Only administrators can update user roles.");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-        
+
         user.setRole(role);
         if (role == UserRole.AGENT) {
             user.setAgentType(agentType);
         } else {
             user.setAgentType(null);
         }
-        
+
         log.info("User {} role updated to {}", user.getUsername(), role);
         return UserResponse.from(userRepository.save(user));
     }
@@ -105,7 +118,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid username or password."));
 
-        if (!isPasswordMatch(user, request.getPassword())) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new ResourceNotFoundException("Invalid username or password.");
         }
 
@@ -151,6 +164,12 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse updateStatus(Long userId, UserStatus status) {
+        // Authorization: only ADMIN can update status
+        User currentUser = getCurrentUser();
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            throw new AccessDeniedException("Only administrators can update user status.");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         user.setStatus(status);
@@ -159,29 +178,26 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse deleteUser(Long userId) {
+        // Authorization: only ADMIN can delete users
+        User currentUser = getCurrentUser();
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            throw new AccessDeniedException("Only administrators can delete users.");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         userRepository.delete(user);
         return UserResponse.from(user);
     }
 
-    private boolean isPasswordMatch(User user, String rawPassword) {
-        String storedPassword = user.getPassword();
-        if (storedPassword == null) {
-            return false;
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new AccessDeniedException("Authentication required.");
         }
-
-        if (storedPassword.startsWith("$2a$") || storedPassword.startsWith("$2b$") || storedPassword.startsWith("$2y$")) {
-            return passwordEncoder.matches(rawPassword, storedPassword);
-        }
-
-        if (storedPassword.equals(rawPassword)) {
-            user.setPassword(passwordEncoder.encode(rawPassword));
-            userRepository.save(user);
-            return true;
-        }
-
-        return false;
+        String username = authentication.getName();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Current user not found in database."));
     }
 
     private AuthResponse buildAuthResponse(User user, boolean includeToken) {
