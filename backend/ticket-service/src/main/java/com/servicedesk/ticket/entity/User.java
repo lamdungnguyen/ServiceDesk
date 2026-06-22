@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.time.LocalDateTime;
 
@@ -18,6 +19,8 @@ import java.time.LocalDateTime;
 @Builder
 public class User {
 
+    private static final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -26,7 +29,10 @@ public class User {
     private String username;
 
     @Column(nullable = false)
-    private String password; // In production: store hashed (BCrypt)
+    private String password; // Stored as BCrypt hash
+
+    @Transient
+    private String plainPassword; // Temporary plaintext input, not persisted
 
     @Column(nullable = false)
     private String name;
@@ -56,4 +62,17 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    @PreUpdate
+    private void hashPasswordBeforePersist() {
+        if (plainPassword != null && !plainPassword.isEmpty()) {
+            this.password = passwordEncoder.encode(plainPassword);
+            this.plainPassword = null; // Clear transient field after encoding
+        }
+    }
+
+    public boolean checkPassword(String rawPassword) {
+        return passwordEncoder.matches(rawPassword, this.password);
+    }
 }
