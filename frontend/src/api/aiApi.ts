@@ -80,8 +80,17 @@ export interface AIFeedbackResponse {
   message: string;
 }
 
-/** Get the latest AI prediction for a ticket */
+/** Get the latest AI prediction for a ticket.
+ *  NOTE: The backend must enforce authorization to prevent IDOR.
+ *  This function does not validate user access; it relies on the backend to check permissions.
+ */
 export const getAIPredictionForTicket = async (ticketId: number): Promise<AIPredictionPayload | null> => {
+  // Validate ticketId to ensure it is a positive integer
+  if (!Number.isInteger(ticketId) || ticketId <= 0) {
+    console.warn('Invalid ticketId provided to getAIPredictionForTicket', ticketId);
+    return null;
+  }
+
   try {
     const response = await apiClient.get(`/ai-feedback/ticket/${ticketId}`);
     const data = response.data as AIPredictionPayload;
