@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Ticket } from '../../types/ticket';
-import { Search, Filter, MoreVertical, ShieldAlert, Loader2, X, Calendar, Clock, User, MessageSquare, FileText } from 'lucide-react';
-import { getAllUsers, assignTicket, getComments, type UserPayload, type Comment } from '../../api/apiClient';
+import type { Ticket, RoutingSuggestion } from '../../types/ticket';
+import { Search, Filter, MoreVertical, ShieldAlert, Loader2, X, Calendar, Clock, User, MessageSquare, FileText, Trash2 } from 'lucide-react';
+import { getAllUsers, assignTicket, getComments, deleteTicket, deleteTickets, getRoutingSuggestions, type UserPayload, type Comment } from '../../api/apiClient';
 import { subscribeToTicket, type ChatMessagePayload } from '../../services/websocket';
 
 interface TicketsProps {
@@ -9,15 +9,22 @@ interface TicketsProps {
   onTicketAssigned?: (ticketId: number, assigneeId: number) => void;
   initialSelectedTicketId?: number | null;
   onTicketViewed?: () => void;
+  onTicketDeleted?: (ticketId: number) => void;
+  onTicketsDeleted?: (ticketIds: number[]) => void;
 }
 
-const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketViewed }: TicketsProps) => {
+const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketViewed, onTicketDeleted, onTicketsDeleted }: TicketsProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [agents, setAgents] = useState<UserPayload[]>([]);
   const [assigningId, setAssigningId] = useState<number | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [routingSuggestions, setRoutingSuggestions] = useState<RoutingSuggestion[]>([]);
+  const [routingLoading, setRoutingLoading] = useState(false);
 
   useEffect(() => {
     getAllUsers('AGENT').then(users => {
@@ -60,6 +67,8 @@ const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketV
   const openTicketModal = async (ticket: Ticket) => {
     setSelectedTicket(ticket);
     setCommentsLoading(true);
+    setRoutingLoading(true);
+    setRoutingSuggestions([]);
     try {
       const data = await getComments(ticket.id);
       setComments(data);
@@ -69,11 +78,22 @@ const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketV
     } finally {
       setCommentsLoading(false);
     }
+
+    try {
+      const suggestions = await getRoutingSuggestions(ticket.id);
+      setRoutingSuggestions(suggestions);
+    } catch (err) {
+      console.error('Failed to fetch routing suggestions', err);
+      setRoutingSuggestions([]);
+    } finally {
+      setRoutingLoading(false);
+    }
   };
 
   const closeModal = () => {
     setSelectedTicket(null);
     setComments([]);
+    setRoutingSuggestions([]);
   };
 
   const handleAssign = async (ticketId: number, assigneeId: number) => {
@@ -82,10 +102,79 @@ const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketV
     try {
       await assignTicket(ticketId, assigneeId);
       if (onTicketAssigned) onTicketAssigned(ticketId, assigneeId);
+      setSelectedTicket(prev => {
+        if (prev && prev.id === ticketId) {
+          return {
+            ...prev,
+            assigneeId,
+            status: prev.status === 'NEW' ? 'ASSIGNED' : prev.status
+          };
+        }
+        return prev;
+      });
     } catch (error) {
       console.error(error);
     } finally {
       setAssigningId(null);
+    }
+  };
+
+  const handleAssignSuggestedAgent = async (assigneeId: number) => {
+    if (!selectedTicket) return;
+    setAssigningId(selectedTicket.id);
+    try {
+      await assignTicket(selectedTicket.id, assigneeId);
+      if (onTicketAssigned) onTicketAssigned(selectedTicket.id, assigneeId);
+      setSelectedTicket(prev => {
+        if (prev) {
+          return {
+            ...prev,
+            assigneeId,
+            status: prev.status === 'NEW' ? 'ASSIGNED' : prev.status
+          };
+        }
+        return prev;
+      });
+    } catch (error) {
+      console.error('Failed to assign suggested agent', error);
+    } finally {
+      setAssigningId(null);
+    }
+  };
+
+  const handleDelete = async (ticketId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to delete ticket #${ticketId}? This action cannot be undone.`)) {
+      return;
+    }
+    setDeletingId(ticketId);
+    try {
+      await deleteTicket(ticketId);
+      if (onTicketDeleted) onTicketDeleted(ticketId);
+    } catch (error) {
+      console.error('Failed to delete ticket', error);
+      alert('Failed to delete ticket');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.size} tickets? This action cannot be undone.`)) {
+      return;
+    }
+    setIsBulkDeleting(true);
+    try {
+      const idsArray = Array.from(selectedIds);
+      await deleteTickets(idsArray);
+      if (onTicketsDeleted) onTicketsDeleted(idsArray);
+      setSelectedIds(new Set());
+    } catch (error) {
+      console.error('Failed to bulk delete tickets', error);
+      alert('Failed to delete tickets');
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -138,6 +227,16 @@ const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketV
             <Filter size={16} />
             <span className="hidden sm:inline">Filter</span>
           </button>
+          {selectedIds.size > 0 && (
+            <button 
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50"
+            >
+              {isBulkDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              <span className="hidden sm:inline">Delete Selected ({selectedIds.size})</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -145,7 +244,21 @@ const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketV
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">
-              <th className="p-4 pl-6">Ticket</th>
+              <th className="p-4 pl-6 w-12">
+                <input 
+                  type="checkbox" 
+                  checked={filteredTickets.length > 0 && selectedIds.size === filteredTickets.length}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedIds(new Set(filteredTickets.map(t => t.id)));
+                    } else {
+                      setSelectedIds(new Set());
+                    }
+                  }}
+                  className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-600"
+                />
+              </th>
+              <th className="p-4">Ticket</th>
               <th className="p-4">Status</th>
               <th className="p-4">Priority</th>
               <th className="p-4">Reporter</th>
@@ -158,6 +271,20 @@ const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketV
             {filteredTickets.map((ticket) => (
               <tr key={ticket.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group">
                 <td className="p-4 pl-6">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.has(ticket.id)}
+                    onChange={(e) => {
+                      const newSet = new Set(selectedIds);
+                      if (e.target.checked) newSet.add(ticket.id);
+                      else newSet.delete(ticket.id);
+                      setSelectedIds(newSet);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-600"
+                  />
+                </td>
+                <td className="p-4">
                   <div className="flex items-center gap-3 cursor-pointer" onClick={() => openTicketModal(ticket)}>
                     <span className="text-xs font-bold text-slate-400">#{ticket.id}</span>
                     <span className="font-medium text-slate-800 dark:text-slate-200 line-clamp-1 max-w-[250px] hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
@@ -201,20 +328,30 @@ const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketV
                     {new Date(ticket.createdAt).toLocaleDateString()}
                   </span>
                 </td>
-                <td className="p-4 text-right pr-6">
-                  <button 
-                    onClick={() => openTicketModal(ticket)}
-                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                    title="View Details"
-                  >
-                    <MoreVertical size={18} />
-                  </button>
+                <td className="p-4 pr-6">
+                  <div className="flex items-center justify-end gap-1">
+                    <button 
+                      onClick={() => openTicketModal(ticket)}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      title="View Details"
+                    >
+                      <MoreVertical size={18} />
+                    </button>
+                    <button 
+                      onClick={(e) => handleDelete(ticket.id, e)}
+                      disabled={deletingId === ticket.id}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-50"
+                      title="Delete Ticket"
+                    >
+                      {deletingId === ticket.id ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
             {filteredTickets.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-12 text-center text-slate-500 dark:text-slate-400">
+                <td colSpan={8} className="p-12 text-center text-slate-500 dark:text-slate-400">
                   <ShieldAlert size={32} className="mx-auto mb-3 opacity-20" />
                   <p>No tickets found matching your search.</p>
                 </td>
@@ -330,6 +467,44 @@ const Tickets = ({ tickets, onTicketAssigned, initialSelectedTicketId, onTicketV
                     <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-blue-500" />
                   )}
                 </div>
+              </div>
+
+              {/* Routing Suggestions */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Routing Suggestions</p>
+                {routingLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <Loader2 size={13} className="animate-spin" /> Loading assignee suggestions...
+                  </div>
+                ) : routingSuggestions.length === 0 ? (
+                  <p className="text-xs text-slate-400">No routing suggestions available.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {routingSuggestions.map(suggestion => (
+                      <div key={suggestion.assigneeId} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
+                              {suggestion.assigneeName}
+                              {suggestion.agentType ? ` · ${suggestion.agentType}` : ''}
+                            </p>
+                            <p className="mt-1 text-[11px] text-slate-400">{suggestion.reason}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] font-bold text-violet-600 dark:text-violet-300">{Math.round(suggestion.score * 100)}%</span>
+                            <button
+                              onClick={() => void handleAssignSuggestedAgent(suggestion.assigneeId)}
+                              disabled={assigningId === selectedTicket.id || selectedTicket.assigneeId === suggestion.assigneeId}
+                              className="px-2.5 py-1 text-[11px] font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {selectedTicket.assigneeId === suggestion.assigneeId ? 'Assigned' : 'Assign'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Comments Section */}

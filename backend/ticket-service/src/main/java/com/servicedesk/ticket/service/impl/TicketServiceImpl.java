@@ -75,6 +75,7 @@ public class TicketServiceImpl implements TicketService {
     private final com.servicedesk.ticket.util.BusinessTimeCalculator businessTimeCalculator;
     private final CustomFieldConfigRepository customFieldConfigRepository;
     private final TicketCustomFieldValueRepository ticketCustomFieldValueRepository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     @Override
     @Transactional
@@ -221,6 +222,43 @@ public class TicketServiceImpl implements TicketService {
         }
 
         return mapToResponse(updatedTicket);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTicket(Long id) {
+        if (UserContext.getUserRole() != UserRole.ADMIN) {
+            throw new UnauthorizedAccessException("Only ADMIN can delete tickets");
+        }
+        Ticket ticket = ticketRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket not found with id: " + id));
+
+        jdbcTemplate.update("DELETE FROM ticket_custom_values WHERE ticket_id = ?", id);
+        jdbcTemplate.update("DELETE FROM comments WHERE ticket_id = ?", id);
+        jdbcTemplate.update("DELETE FROM ticket_audit_logs WHERE ticket_id = ?", id);
+        jdbcTemplate.update("DELETE FROM ai_predictions WHERE ticket_id = ?", id);
+        jdbcTemplate.update("DELETE FROM ratings WHERE ticket_id = ?", id);
+        
+        ticketRepository.delete(ticket);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTickets(List<Long> ids) {
+        if (UserContext.getUserRole() != UserRole.ADMIN) {
+            throw new UnauthorizedAccessException("Only ADMIN can delete tickets");
+        }
+        for (Long id : ids) {
+            Ticket ticket = ticketRepository.findById(id).orElse(null);
+            if (ticket != null) {
+                jdbcTemplate.update("DELETE FROM ticket_custom_values WHERE ticket_id = ?", id);
+                jdbcTemplate.update("DELETE FROM comments WHERE ticket_id = ?", id);
+                jdbcTemplate.update("DELETE FROM ticket_audit_logs WHERE ticket_id = ?", id);
+                jdbcTemplate.update("DELETE FROM ai_predictions WHERE ticket_id = ?", id);
+                jdbcTemplate.update("DELETE FROM ratings WHERE ticket_id = ?", id);
+                ticketRepository.delete(ticket);
+            }
+        }
     }
 
     @Override
@@ -380,7 +418,7 @@ public class TicketServiceImpl implements TicketService {
                             .createdAt(candidate.getCreatedAt())
                             .build();
                 })
-                .filter(candidate -> candidate.getScore() > 0.0)
+                .filter(candidate -> candidate.getScore() >= 0.30)
                 .sorted(Comparator.comparing(SimilarTicketResponse::getScore).reversed())
                 .limit(5)
                 .collect(Collectors.toList());

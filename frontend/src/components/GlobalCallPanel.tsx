@@ -45,7 +45,11 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
 
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const fullScreenVideoRef = useRef<HTMLVideoElement | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const fullScreenLocalVideoRef = useRef<HTMLVideoElement | null>(null);
+  
   const remoteStreamRef = useRef<MediaStream | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const ticketUnsubRef = useRef<(() => void) | null>(null);
@@ -110,13 +114,6 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
     }
   }, [status]);
 
-  useEffect(() => {
-    if (!minimized && fullScreenVideoRef.current && remoteStreamRef.current) {
-      fullScreenVideoRef.current.srcObject = remoteStreamRef.current;
-      fullScreenVideoRef.current.play().catch(() => {});
-    }
-  }, [minimized, status]);
-
   const cleanup = useCallback(() => {
     rtcEnd();
     if (ticketUnsubRef.current) {
@@ -131,11 +128,25 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
     startTimeRef.current = null;
     setDuration(0);
     remoteStreamRef.current = null;
+    localStreamRef.current = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     if (fullScreenVideoRef.current) fullScreenVideoRef.current.srcObject = null;
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    if (fullScreenLocalVideoRef.current) fullScreenLocalVideoRef.current.srcObject = null;
   }, []);
 
   // Subscribe to user-specific call topic (CALL_REQUEST only)
+  useEffect(() => {
+    let timeout: number;
+    if (status === 'calling') {
+      timeout = window.setTimeout(() => {
+        alert('Call timeout: No answer from peer.');
+        handleEnd();
+      }, 30000);
+    }
+    return () => window.clearTimeout(timeout);
+  }, [status]);
+
   useEffect(() => {
     let unsub: (() => void) | null = null;
     connectWebSocket()
@@ -167,15 +178,26 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
     setRtcCallbacks({
       onRemoteStream: (stream) => {
         remoteStreamRef.current = stream;
-        if (remoteVideoRef.current) {
+        if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== stream) {
           remoteVideoRef.current.srcObject = stream;
           remoteVideoRef.current.play().catch(() => {});
         }
-        if (fullScreenVideoRef.current) {
+        if (fullScreenVideoRef.current && fullScreenVideoRef.current.srcObject !== stream) {
           fullScreenVideoRef.current.srcObject = stream;
           fullScreenVideoRef.current.play().catch(() => {});
         }
         setStatus('connected');
+      },
+      onLocalStream: (stream) => {
+        localStreamRef.current = stream;
+        if (localVideoRef.current && localVideoRef.current.srcObject !== stream) {
+          localVideoRef.current.srcObject = stream;
+          localVideoRef.current.play().catch(() => {});
+        }
+        if (fullScreenLocalVideoRef.current && fullScreenLocalVideoRef.current.srcObject !== stream) {
+          fullScreenLocalVideoRef.current.srcObject = stream;
+          fullScreenLocalVideoRef.current.play().catch(() => {});
+        }
       },
       onConnectionStateChange: (state) => {
         if (state === 'connected') setStatus('connected');
@@ -200,7 +222,13 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
             selfRole: 'AGENT',
             targetUserId: sig.senderId,
           });
-          await handleOffer(sig);
+          try {
+            await handleOffer(sig);
+          } catch (err) {
+            console.error('[GlobalCall] Failed to handle offer', err);
+            alert('Call failed: Could not access camera/microphone.');
+            cleanup();
+          }
           break;
         case 'ANSWER':
           await handleAnswer(sig);
@@ -256,6 +284,35 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
     setMutedState(next);
     setMuted(next);
   };
+
+  // Ensure streams are attached when video elements mount/remount
+  useEffect(() => {
+    if (status === 'connected') {
+      const stream = remoteStreamRef.current;
+      if (stream) {
+        if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== stream) {
+          remoteVideoRef.current.srcObject = stream;
+          remoteVideoRef.current.play().catch(() => {});
+        }
+        if (fullScreenVideoRef.current && fullScreenVideoRef.current.srcObject !== stream) {
+          fullScreenVideoRef.current.srcObject = stream;
+          fullScreenVideoRef.current.play().catch(() => {});
+        }
+      }
+
+      const lStream = localStreamRef.current;
+      if (lStream) {
+        if (localVideoRef.current && localVideoRef.current.srcObject !== lStream) {
+          localVideoRef.current.srcObject = lStream;
+          localVideoRef.current.play().catch(() => {});
+        }
+        if (fullScreenLocalVideoRef.current && fullScreenLocalVideoRef.current.srcObject !== lStream) {
+          fullScreenLocalVideoRef.current.srcObject = lStream;
+          fullScreenLocalVideoRef.current.play().catch(() => {});
+        }
+      }
+    }
+  }, [status, minimized]);
 
   if (status === 'idle') return null;
 

@@ -37,10 +37,15 @@ const CallPanel = ({ ticketId, selfId, selfName, selfRole, peerId, peerName, dis
   const [callerName, setCallerName] = useState<string>('');
   
   const [duration, setDuration] = useState(0);
+
+  const remoteStreamRef = useRef<MediaStream | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  
   const [showSettings, setShowSettings] = useState(false);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedMic, setSelectedMic] = useState<string>('');
   const [selectedSpeaker, setSelectedSpeaker] = useState<string>('');
+  const [minimized, setMinimized] = useState(false);
   
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -139,14 +144,16 @@ const CallPanel = ({ ticketId, selfId, selfName, selfRole, peerId, peerName, dis
   useEffect(() => {
     setRtcCallbacks({
       onRemoteStream: (stream) => {
-        if (remoteVideoRef.current) {
+        remoteStreamRef.current = stream;
+        if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== stream) {
           remoteVideoRef.current.srcObject = stream;
           remoteVideoRef.current.play().catch(err => console.warn('Video play failed', err));
         }
         setStatus('connected');
       },
       onLocalStream: (stream) => {
-        if (localVideoRef.current) {
+        localStreamRef.current = stream;
+        if (localVideoRef.current && localVideoRef.current.srcObject !== stream) {
           localVideoRef.current.srcObject = stream;
           localVideoRef.current.play().catch(err => console.warn('Local video play failed', err));
         }
@@ -166,6 +173,7 @@ const CallPanel = ({ ticketId, selfId, selfName, selfRole, peerId, peerName, dis
     connectWebSocket()
       .then(() => {
         unsubscribe = subscribeToCall(ticketId, async (signal) => {
+          console.log('[CallPanel] Received signal:', signal);
           if (signal.senderId === selfId) return;
           if (signal.targetUserId && signal.targetUserId !== selfId) return;
           switch (signal.type) {
@@ -176,7 +184,13 @@ const CallPanel = ({ ticketId, selfId, selfName, selfRole, peerId, peerName, dis
               break;
             case 'CALL_ACCEPT':
               setRtcContext({ ticketId, selfId, selfName, selfRole, targetUserId: signal.senderId });
-              await startOffer();
+              try {
+                await startOffer();
+              } catch (err) {
+                console.error('[Call] Failed to start offer', err);
+                alert('Call failed: Could not access camera/microphone.');
+                cleanup();
+              }
               break;
             case 'CALL_REJECT':
             case 'CALL_END':
@@ -184,10 +198,21 @@ const CallPanel = ({ ticketId, selfId, selfName, selfRole, peerId, peerName, dis
               break;
             case 'OFFER':
               setRtcContext({ ticketId, selfId, selfName, selfRole, targetUserId: signal.senderId });
-              await handleOffer(signal);
+              try {
+                await handleOffer(signal);
+              } catch (err) {
+                console.error('[Call] Failed to handle offer', err);
+                alert('Call failed: Could not access camera/microphone.');
+                cleanup();
+              }
               break;
             case 'ANSWER':
-              await handleAnswer(signal);
+              try {
+                await handleAnswer(signal);
+              } catch (err) {
+                console.error('[Call] Failed to handle answer', err);
+                cleanup();
+              }
               break;
             case 'ICE':
               await handleIce(signal);
@@ -208,6 +233,31 @@ const CallPanel = ({ ticketId, selfId, selfName, selfRole, peerId, peerName, dis
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);
   }, [status, ticketId, selfId, selfName, selfRole]);
+
+  useEffect(() => {
+    let timeout: number;
+    if (status === 'calling') {
+      timeout = window.setTimeout(() => {
+        alert('Call timeout: No answer from peer.');
+        handleEnd();
+      }, 30000);
+    }
+    return () => window.clearTimeout(timeout);
+  }, [status]);
+
+  // Ensure streams are attached when video elements mount/remount
+  useEffect(() => {
+    if (status === 'connected') {
+      if (remoteVideoRef.current && remoteStreamRef.current && remoteVideoRef.current.srcObject !== remoteStreamRef.current) {
+        remoteVideoRef.current.srcObject = remoteStreamRef.current;
+        remoteVideoRef.current.play().catch(err => console.warn('Remote video play failed', err));
+      }
+      if (localVideoRef.current && localStreamRef.current && localVideoRef.current.srcObject !== localStreamRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current;
+        localVideoRef.current.play().catch(err => console.warn('Local video play failed', err));
+      }
+    }
+  }, [status, minimized]);
 
   const handleCallClick = () => {
     if (!peerId) return;
@@ -265,7 +315,6 @@ const CallPanel = ({ ticketId, selfId, selfName, selfRole, peerId, peerName, dis
     }
   };
 
-  const [minimized, setMinimized] = useState(false);
   const inCall = status === 'calling' || status === 'connected';
   const callBtnDisabled = !peerId || inCall || status === 'ringing' || !!disabledReason;
 

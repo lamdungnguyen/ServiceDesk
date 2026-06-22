@@ -52,6 +52,7 @@ class TicketServiceImplTest {
     private final BusinessTimeCalculator businessTimeCalculator = mock(BusinessTimeCalculator.class);
     private final CustomFieldConfigRepository customFieldConfigRepository = mock(CustomFieldConfigRepository.class);
     private final TicketCustomFieldValueRepository ticketCustomFieldValueRepository = mock(TicketCustomFieldValueRepository.class);
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate = mock(org.springframework.jdbc.core.JdbcTemplate.class);
 
     @AfterEach
     void clearUserContext() {
@@ -155,7 +156,8 @@ class TicketServiceImplTest {
                 settingsRepository,
                 businessTimeCalculator,
                 customFieldConfigRepository,
-                ticketCustomFieldValueRepository
+                ticketCustomFieldValueRepository,
+                jdbcTemplate
         );
     }
 

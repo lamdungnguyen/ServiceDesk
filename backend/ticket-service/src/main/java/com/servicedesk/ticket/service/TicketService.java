@@ -22,4 +22,6 @@ public interface TicketService {
     List<SimilarTicketResponse> getSimilarTickets(Long id);
     TicketAiSummaryResponse getAiSummary(Long id);
     List<RoutingSuggestionResponse> getRoutingSuggestions(Long id);
+    void deleteTicket(Long id);
+    void deleteTickets(List<Long> ids);
 }

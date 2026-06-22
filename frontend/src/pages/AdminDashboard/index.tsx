@@ -138,6 +138,12 @@ const AdminDashboard = () => {
                   onTicketAssigned={handleTicketAssigned} 
                   initialSelectedTicketId={selectedTicketId}
                   onTicketViewed={() => setSelectedTicketId(null)}
+                  onTicketDeleted={(id) => {
+                    setTickets(prev => prev.filter(t => t.id !== id));
+                  }}
+                  onTicketsDeleted={(ids) => {
+                    setTickets(prev => prev.filter(t => !ids.includes(t.id)));
+                  }}
                 />
               )}
               {activeTab === 'users' && <UsersList />}

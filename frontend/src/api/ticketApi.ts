@@ -54,6 +54,14 @@ export const assignTicket = async (id: number, assigneeId: number): Promise<Tick
   return response.data;
 };
 
+export const deleteTicket = async (id: number): Promise<void> => {
+  await apiClient.delete(`/tickets/${id}`);
+};
+
+export const deleteTickets = async (ids: number[]): Promise<void> => {
+  await apiClient.delete('/tickets', { params: { ids: ids.join(',') } });
+};
+
 // ─── Comment APIs ────────────────────────────────────────────────────────────
 
 export interface Comment {

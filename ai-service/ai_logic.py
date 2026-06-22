@@ -40,6 +40,7 @@ CATEGORY_KEYWORDS: dict[str, list[str]] = {
         "mạng chậm", "lag mạng",
         "vpn", "network", "connection",
         "không có mạng", "rớt mạng",
+        "ddos", "load balancer", "firewall", "port", "dns", "bandwidth", "ip"
     ],
     "ACCOUNT": [
         "đăng nhập", "login", "log in",
@@ -48,6 +49,7 @@ CATEGORY_KEYWORDS: dict[str, list[str]] = {
         "access denied", "tài khoản",
         "account", "unlock account",
         "reset password", "forgot password",
+        "billing", "invoice", "charge", "administrator password"
     ],
     "INFRASTRUCTURE": [
         "server down", "server",
@@ -55,6 +57,8 @@ CATEGORY_KEYWORDS: dict[str, list[str]] = {
         "outage", "sập hệ thống",
         "máy chủ lỗi", "hệ thống sập",
         "infrastructure", "dịch vụ không hoạt động",
+        "vm", "virtual machine", "block storage", "san storage", 
+        "backup", "restore", "snapshot", "cluster"
     ],
     "HARDWARE": [
         "laptop", "máy tính", "pc",
@@ -176,6 +180,7 @@ def detect_impact(text: str) -> tuple[str, str, list[str]]:
         "all users cannot work", "everyone cannot work", "entire system",
         "sap he thong", "sập hệ thống", "he thong sap", "hệ thống sập",
         "toan bo he thong", "toàn bộ hệ thống",
+        "completely disrupted", "unable to ping", "dropping connections", "ddos attack"
     ]
     business_blocking_keywords = [
         "cannot work", "can't work", "unable to work", "business stopped",
@@ -184,6 +189,7 @@ def detect_impact(text: str) -> tuple[str, str, list[str]]:
         "khong the lam viec", "không thể làm việc",
         "khong xuat hoa don", "không xuất hóa đơn",
         "dung hoat dong", "dừng hoạt động",
+        "kernel panic", "unable to boot"
     ]
     multiple_user_keywords = [
         "all users", "everyone", "many users", "multiple users",
@@ -191,6 +197,7 @@ def detect_impact(text: str) -> tuple[str, str, list[str]]:
         "tat ca nguoi dung", "tất cả người dùng",
         "nhieu nguoi", "nhiều người", "ca phong", "cả phòng",
         "toan bo phong", "toàn bộ phòng",
+        "customer-facing services"
     ]
     single_user_keywords = [
         "my account", "my laptop", "my computer", "i cannot", "i can't",
@@ -239,11 +246,15 @@ def predict_priority(text: str, sentiment: str, impact: str = IMPACT_NONE) -> tu
         "sập hệ thống", "sap he thong", "khẩn cấp", "khan cap",
         "không làm được việc", "khong lam duoc viec",
         "toàn bộ", "toan bo", "ngừng hoạt động", "ngung hoat dong",
+        "ddos", "completely disrupted"
     ]
     high_keywords   = ["down", "urgent", "cannot work", "critical", "broken", "fail",
-                       "sập", "khẩn cấp", "không làm được việc", "hỏng"]
+                       "sập", "khẩn cấp", "không làm được việc", "hỏng",
+                       "severe drop", "spiking", "latency", "iops", "performance degradation",
+                       "unhealthy", "not forwarding traffic"]
     medium_keywords = ["slow", "delay", "issue", "error", "bug",
-                       "chậm", "lỗi", "trễ", "vấn đề"]
+                       "chậm", "lỗi", "trễ", "vấn đề",
+                       "restore", "open port", "update dns"]
 
     has_urgent = any(kw in text_lower for kw in urgent_keywords)
     has_high   = any(kw in text_lower for kw in high_keywords)

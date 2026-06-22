@@ -109,4 +109,16 @@ public class TicketController {
         TicketResponse response = ticketService.assignTicket(id, assigneeId);
         return ResponseEntity.ok(response);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTicket(@PathVariable Long id) {
+        ticketService.deleteTicket(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping
+    public ResponseEntity<Void> deleteTickets(@RequestParam List<Long> ids) {
+        ticketService.deleteTickets(ids);
+        return ResponseEntity.noContent().build();
+    }
 }

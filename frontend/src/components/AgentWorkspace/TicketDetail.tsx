@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { type RoutingSuggestion, type SimilarTicket, type Ticket, type TicketAiSummary } from '../../types/ticket';
+import { type SimilarTicket, type Ticket, type TicketAiSummary } from '../../types/ticket';
 import {
   assignTicket, getAllUsers, getAIPredictionForTicket, submitAIFeedback,
-  getSimilarTickets, getTicketAiSummary, getRoutingSuggestions,
+  getSimilarTickets, getTicketAiSummary,
   type Comment, type UserPayload, type AIPredictionPayload
 } from '../../api/apiClient';
 import { useAuth } from '../../context/auth';
@@ -127,8 +127,6 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
   const [aiSummaryError, setAiSummaryError] = useState<string | null>(null);
   const [similarTickets, setSimilarTickets] = useState<SimilarTicket[]>([]);
   const [similarLoading, setSimilarLoading] = useState(false);
-  const [routingSuggestions, setRoutingSuggestions] = useState<RoutingSuggestion[]>([]);
-  const [routingLoading, setRoutingLoading] = useState(false);
 
   useEffect(() => {
     getAllUsers().then(users => {
@@ -143,11 +141,9 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
     setAiSummary(null);
     setAiSummaryError(null);
     setSimilarTickets([]);
-    setRoutingSuggestions([]);
     setFeedbackDone(false);
     setAiLoading(true);
     setSimilarLoading(true);
-    setRoutingLoading(true);
     getAIPredictionForTicket(ticket.id)
       .then(data => {
         setAiPrediction(data);
@@ -162,10 +158,6 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
       .then(setSimilarTickets)
       .catch(() => setSimilarTickets([]))
       .finally(() => setSimilarLoading(false));
-    getRoutingSuggestions(ticket.id)
-      .then(setRoutingSuggestions)
-      .catch(() => setRoutingSuggestions([]))
-      .finally(() => setRoutingLoading(false));
   }, [ticket?.id]);
 
   const handleSubmitFeedback = async () => {
@@ -282,17 +274,7 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
     }
   };
 
-  const handleAssignSuggestedAgent = async (assigneeId: number) => {
-    setIsAssigning(true);
-    try {
-      await assignTicket(ticket.id, assigneeId);
-      if (onTicketAssigned) onTicketAssigned(ticket.id, assigneeId);
-    } catch (err) {
-      console.error('Failed to assign suggested agent', err);
-    } finally {
-      setIsAssigning(false);
-    }
-  };
+
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900 transition-colors duration-300">
@@ -607,42 +589,6 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
                     )}
                   </div>
 
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/40 p-3">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Routing Suggestions</p>
-                    {routingLoading ? (
-                      <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <Loader2 size={13} className="animate-spin" /> Loading assignee suggestions...
-                      </div>
-                    ) : routingSuggestions.length === 0 ? (
-                      <p className="text-xs text-slate-400">No routing suggestions available.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {routingSuggestions.map(suggestion => (
-                          <div key={suggestion.assigneeId} className="rounded-lg border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
-                                  {suggestion.assigneeName}
-                                  {suggestion.agentType ? ` · ${suggestion.agentType}` : ''}
-                                </p>
-                                <p className="mt-1 text-[11px] text-slate-400">{suggestion.reason}</p>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-[10px] font-bold text-violet-600 dark:text-violet-300">{Math.round(suggestion.score * 100)}%</span>
-                                <button
-                                  onClick={() => void handleAssignSuggestedAgent(suggestion.assigneeId)}
-                                  disabled={isAssigning || ticket.assigneeId === suggestion.assigneeId}
-                                  className="px-2.5 py-1 text-[11px] font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  {ticket.assigneeId === suggestion.assigneeId ? 'Assigned' : 'Assign'}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
 
                 {/* Feedback form or confirmed result */}

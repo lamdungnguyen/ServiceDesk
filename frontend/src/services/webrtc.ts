@@ -37,9 +37,18 @@ function ensurePeerConnection(): RTCPeerConnection {
   };
 
   peerConnection.ontrack = (event) => {
-    if (!remoteStream) remoteStream = new MediaStream();
-    remoteStream.addTrack(event.track);
-    currentCallbacks?.onRemoteStream(remoteStream);
+    let stream: MediaStream;
+    if (event.streams && event.streams.length > 0) {
+      stream = event.streams[0];
+    } else {
+      if (!remoteStream) remoteStream = new MediaStream();
+      remoteStream.addTrack(event.track);
+      stream = remoteStream;
+    }
+    
+    // Always trigger onRemoteStream when a new track arrives
+    // The UI will play the stream
+    currentCallbacks?.onRemoteStream(stream);
   };
 
   peerConnection.onconnectionstatechange = () => {
@@ -55,14 +64,30 @@ async function attachLocalStream(): Promise<MediaStream> {
   if (localStream) return localStream; // Prevent re-prompting
 
   const constraints = currentMicId ? { audio: { deviceId: { exact: currentMicId } }, video: true } : { audio: true, video: true };
-  localStream = await navigator.mediaDevices.getUserMedia(constraints);
+  
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+  } catch (err) {
+    console.warn('[WebRTC] Failed to get video+audio, trying audio only...', err);
+    try {
+      const audioOnlyConstraints = currentMicId ? { audio: { deviceId: { exact: currentMicId } }, video: false } : { audio: true, video: false };
+      localStream = await navigator.mediaDevices.getUserMedia(audioOnlyConstraints);
+    } catch (audioErr) {
+      console.error('[WebRTC] Failed to get any media devices', audioErr);
+      throw new Error('Could not access camera or microphone. Please check permissions.');
+    }
+  }
 
   const pc = ensurePeerConnection();
 
+  const hasVideo = localStream.getVideoTracks().length > 0;
+
   localStream.getTracks().forEach((track) => pc.addTrack(track, localStream!));
 
-  // Pre-add video transceiver so we can replaceTrack later without renegotiating
-  pc.addTransceiver('video', { direction: 'sendrecv' });
+  if (!hasVideo) {
+    // Pre-add video transceiver so we can replaceTrack later without renegotiating
+    pc.addTransceiver('video', { direction: 'sendrecv' });
+  }
 
   if (currentCallbacks?.onLocalStream) {
     currentCallbacks.onLocalStream(localStream);
@@ -230,14 +255,22 @@ export async function setVideoEnabled(enabled: boolean): Promise<void> {
 let screenStream: MediaStream | null = null;
 
 export async function startScreenShare(onEndedCallback?: () => void): Promise<void> {
-  if (!peerConnection || !localStream) return;
+  if (!peerConnection || !localStream) {
+    console.error('[WebRTC] startScreenShare failed: no peerConnection or localStream');
+    return;
+  }
   try {
     screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
     const screenTrack = screenStream.getVideoTracks()[0];
+    console.log('[WebRTC] Screen track obtained:', screenTrack.label);
 
     const videoTransceiver = peerConnection.getTransceivers().find(t => t.receiver.track.kind === 'video');
     if (videoTransceiver) {
+      console.log('[WebRTC] Found video transceiver, replacing track...');
       await videoTransceiver.sender.replaceTrack(screenTrack);
+      console.log('[WebRTC] Track replaced successfully.');
+    } else {
+      console.error('[WebRTC] No video transceiver found to replace track!');
     }
 
     if (currentCallbacks?.onLocalStream) {
