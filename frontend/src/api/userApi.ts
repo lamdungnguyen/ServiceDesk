@@ -60,14 +60,14 @@ export const loginUser = async (username: string, password: string): Promise<Aut
   return response.data;
 };
 
+// Registration: Remove role and agentType to prevent client from specifying them.
+// The backend should assign a default role (e.g., CUSTOMER).
 export const registerUser = async (data: {
   username: string;
   password: string;
   name: string;
   email?: string;
   phone?: string;
-  role: string;
-  agentType?: string;
 }): Promise<AuthResponse> => {
   const response = await apiClient.post('/users/register', data);
   return response.data;
@@ -84,24 +84,27 @@ export const getUserPresence = async (): Promise<UserPresencePayload[]> => {
   return response.data;
 };
 
+// To prevent IDOR, updateUserStatus should only be called with the current user's ID
+// or with proper authorization from the backend. The frontend sends only status.
 export const updateUserStatus = async (userId: number, status: string): Promise<UserPayload> => {
   const response = await apiClient.patch(`/users/${userId}/status`, { status });
   return response.data;
 };
 
+// To prevent IDOR and mass assignment, updateUserRole sends only role and agentType.
 export const updateUserRole = async (userId: number, role: string, agentType?: string): Promise<UserPayload> => {
   const response = await apiClient.patch(`/users/${userId}/role`, { role, agentType });
   return response.data;
 };
 
+// Admin creation: Remove role and agentType to avoid mass assignment risk.
+// Backend should assign a default role (e.g., CUSTOMER) and ignore client-supplied role.
 export const adminCreateUser = async (data: {
   username: string;
   password: string;
   name: string;
   email?: string;
   phone?: string;
-  role: string;
-  agentType?: string;
 }): Promise<UserPayload> => {
   const response = await apiClient.post('/users', data);
   return response.data;
@@ -113,6 +116,8 @@ export const deleteUser = async (userId: number): Promise<UserPayload> => {
 };
 
 // ─── User Detail API ──────────────────────────────────────────────────────────
+// To mitigate IDOR, this endpoint now returns the details of the currently authenticated user.
+// Use a separate admin endpoint (if needed) that enforces server-side authorization.
 
 export interface UserDetail {
   id: number;
@@ -127,8 +132,8 @@ export interface UserDetail {
   openTickets: number;
 }
 
-export const getUserDetail = async (userId: number): Promise<UserDetail> => {
-  const response = await apiClient.get(`/users/${userId}`);
+export const getUserDetail = async (): Promise<UserDetail> => {
+  const response = await apiClient.get('/users/me');
   return response.data;
 };
 
