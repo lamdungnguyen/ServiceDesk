@@ -37,7 +37,7 @@ public interface AIPredictionRepository extends JpaRepository<AIPrediction, Long
         SELECT
             p.predictedCategory,
             COUNT(p) AS totalVerified,
-            SUM(CASE WHEN p.agentCorrected = false THEN 1L ELSE 0L END) AS correctCount
+            SUM(CASE WHEN p.predictedCategory = p.correctedCategory THEN 1L ELSE 0L END) AS correctCount
         FROM AIPrediction p
         WHERE p.correctedCategory IS NOT NULL
         GROUP BY p.predictedCategory
@@ -53,7 +53,7 @@ public interface AIPredictionRepository extends JpaRepository<AIPrediction, Long
         SELECT
             p.predictedPriority,
             COUNT(p) AS totalVerified,
-            SUM(CASE WHEN p.agentCorrected = false THEN 1L ELSE 0L END) AS correctCount
+            SUM(CASE WHEN p.predictedPriority = p.correctedPriority THEN 1L ELSE 0L END) AS correctCount
         FROM AIPrediction p
         WHERE p.correctedPriority IS NOT NULL
         GROUP BY p.predictedPriority
@@ -69,7 +69,7 @@ public interface AIPredictionRepository extends JpaRepository<AIPrediction, Long
         SELECT
             p.predictionSource,
             COUNT(p) AS totalVerified,
-            SUM(CASE WHEN p.agentCorrected = false THEN 1L ELSE 0L END) AS correctCount
+            SUM(CASE WHEN p.predictedCategory = p.correctedCategory THEN 1L ELSE 0L END) AS correctCount
         FROM AIPrediction p
         WHERE p.correctedCategory IS NOT NULL
         GROUP BY p.predictionSource
@@ -79,7 +79,12 @@ public interface AIPredictionRepository extends JpaRepository<AIPrediction, Long
     /**
      * Tổng số records đã verify (có correction).
      */
-    @Query("SELECT COUNT(p) FROM AIPrediction p WHERE p.correctedCategory IS NOT NULL")
+    @Query("""
+        SELECT COUNT(p)
+        FROM AIPrediction p
+        WHERE p.correctedCategory IS NOT NULL
+           OR p.correctedPriority IS NOT NULL
+    """)
     long countVerifiedPredictions();
 
     /**
@@ -87,6 +92,19 @@ public interface AIPredictionRepository extends JpaRepository<AIPrediction, Long
      */
     @Query("SELECT COUNT(p) FROM AIPrediction p WHERE p.agentCorrected = true")
     long countCorrectedPredictions();
+
+    /**
+     * Tổng số verified records đúng cả category và priority.
+     */
+    @Query("""
+        SELECT COUNT(p)
+        FROM AIPrediction p
+        WHERE p.correctedCategory IS NOT NULL
+          AND p.correctedPriority IS NOT NULL
+          AND p.predictedCategory = p.correctedCategory
+          AND p.predictedPriority = p.correctedPriority
+    """)
+    long countFullyCorrectPredictions();
 
     // ── Export Training Data ───────────────────────────────────────────────────
 
@@ -98,6 +116,7 @@ public interface AIPredictionRepository extends JpaRepository<AIPrediction, Long
         SELECT p
         FROM AIPrediction p
         WHERE p.correctedCategory IS NOT NULL
+           OR p.correctedPriority IS NOT NULL
         ORDER BY p.createdAt DESC
     """)
     List<AIPrediction> findVerifiedPredictionsForExport();

@@ -624,6 +624,7 @@ const TicketForm = () => {
         title: `[${category}] ${title}`,
         description: finalDesc,
         priority: 'MEDIUM',
+        category,
         reporterName: name,
         reporterEmail: email,
       });
@@ -754,8 +755,8 @@ const TicketForm = () => {
                 <option value="SOFTWARE">Software</option>
                 <option value="HARDWARE">Hardware</option>
                 <option value="NETWORK">Network & Connectivity</option>
-                <option value="ACCESS">Access & Authentication</option>
-                <option value="OTHER">Other</option>
+                <option value="ACCOUNT">Access & Authentication</option>
+                <option value="GENERAL">Other</option>
               </select>
             </div>
           </div>

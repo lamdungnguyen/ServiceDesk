@@ -17,4 +17,6 @@ public class DirectMessageDto {
     private String fileUrl;
     private String fileName;
     private LocalDateTime createdAt;
+    private String readByIds;
+    private String reactions;
 }

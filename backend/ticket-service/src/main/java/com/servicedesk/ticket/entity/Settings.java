@@ -90,6 +90,18 @@ public class Settings {
     @Builder.Default
     private String aiServiceUrl = "http://localhost:8000";
 
+    @Column(name = "ai_auto_apply_enabled")
+    @Builder.Default
+    private Boolean aiAutoApplyEnabled = true;
+
+    @Column(name = "ai_auto_apply_threshold")
+    @Builder.Default
+    private Double aiAutoApplyThreshold = 0.8;
+
+    @Column(name = "ai_suggest_threshold")
+    @Builder.Default
+    private Double aiSuggestThreshold = 0.5;
+
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;

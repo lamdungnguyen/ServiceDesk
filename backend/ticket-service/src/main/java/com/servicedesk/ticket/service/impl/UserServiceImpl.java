@@ -36,15 +36,36 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public AuthResponse register(UserRegisterRequest request) {
+        // Block AGENT/ADMIN self-registration
+        if (request.getRole() == UserRole.AGENT || request.getRole() == UserRole.ADMIN) {
+            throw new IllegalArgumentException("Only customers can self-register. Agents and Admins must be created by an Administrator.");
+        }
+
         // Check username uniqueness
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException("Username '" + request.getUsername() + "' already exists.");
         }
 
-        // Agents need admin approval; Customers and Admins are auto-active
-        UserStatus initialStatus = (request.getRole() == UserRole.AGENT)
-                ? UserStatus.PENDING
-                : UserStatus.ACTIVE;
+        User user = User.builder()
+                .username(request.getUsername())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .name(request.getName())
+                .email(request.getEmail())
+                .phone(request.getPhone())
+                .role(UserRole.CUSTOMER) // Force role
+                .status(UserStatus.ACTIVE)
+                .build();
+
+        User saved = userRepository.save(user);
+        log.info("User registered: {} with role {} and status {}", saved.getUsername(), saved.getRole(), saved.getStatus());
+        return buildAuthResponse(saved, saved.getStatus() == UserStatus.ACTIVE);
+    }
+
+    @Override
+    public UserResponse createUser(UserRegisterRequest request) {
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new IllegalArgumentException("Username '" + request.getUsername() + "' already exists.");
+        }
 
         User user = User.builder()
                 .username(request.getUsername())
@@ -53,13 +74,29 @@ public class UserServiceImpl implements UserService {
                 .email(request.getEmail())
                 .phone(request.getPhone())
                 .role(request.getRole())
-                .agentType(request.getAgentType())
-                .status(initialStatus)
+                .agentType(request.getRole() == UserRole.AGENT ? request.getAgentType() : null)
+                .status(UserStatus.ACTIVE) // Admin created users are always active
                 .build();
 
         User saved = userRepository.save(user);
-        log.info("User registered: {} with role {} and status {}", saved.getUsername(), saved.getRole(), saved.getStatus());
-        return buildAuthResponse(saved, saved.getStatus() == UserStatus.ACTIVE);
+        log.info("Admin created user: {} with role {}", saved.getUsername(), saved.getRole());
+        return UserResponse.from(saved);
+    }
+
+    @Override
+    public UserResponse updateUserRole(Long userId, UserRole role, String agentType) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        
+        user.setRole(role);
+        if (role == UserRole.AGENT) {
+            user.setAgentType(agentType);
+        } else {
+            user.setAgentType(null);
+        }
+        
+        log.info("User {} role updated to {}", user.getUsername(), role);
+        return UserResponse.from(userRepository.save(user));
     }
 
     @Override

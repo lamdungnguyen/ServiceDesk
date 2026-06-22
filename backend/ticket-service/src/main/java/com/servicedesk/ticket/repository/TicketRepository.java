@@ -32,4 +32,16 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
     long countByAssigneeIdAndResolvedAtAfter(Long assigneeId, LocalDateTime since);
 
     long countByAssigneeIdAndStatus(Long assigneeId, com.servicedesk.ticket.enums.TicketStatus status);
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT COUNT(t)
+        FROM Ticket t
+        WHERE t.assigneeId = :assigneeId
+          AND UPPER(t.category) = UPPER(:category)
+          AND t.status IN ('RESOLVED', 'CLOSED')
+    """)
+    long countResolvedByAssigneeAndCategory(
+            @org.springframework.data.repository.query.Param("assigneeId") Long assigneeId,
+            @org.springframework.data.repository.query.Param("category") String category
+    );
 }

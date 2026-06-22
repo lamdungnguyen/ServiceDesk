@@ -10,19 +10,19 @@ import { useAuth } from '../context/auth';
 
 // Support topic display config
 const TOPIC_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-  TECHNICAL: { label: 'Lỗi kỹ thuật', icon: '🔧', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  BILLING: { label: 'Thanh toán', icon: '💳', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  ACCOUNT: { label: 'Tài khoản', icon: '👤', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-  GENERAL: { label: 'Chung', icon: '❓', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  TECHNICAL: { label: 'Technical Issue', icon: '🔧', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  BILLING: { label: 'Billing', icon: '💳', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  ACCOUNT: { label: 'Account', icon: '👤', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  GENERAL: { label: 'General', icon: '❓', color: 'bg-amber-100 text-amber-700 border-amber-200' },
 };
 
 const formatTime = (iso: string) => {
   const d = new Date(iso);
   const now = new Date();
   if (d.toDateString() === now.toDateString()) {
-    return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   }
-  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 };
 
 interface Props {
@@ -186,7 +186,7 @@ const SupportRequestDetail = ({ supportRequest, onClose, onConversationUpdated }
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${topic.color}`}>
                 {topic.label}
               </span>
-              <span className="text-xs text-slate-400">Yêu cầu #{supportRequest.id}</span>
+              <span className="text-xs text-slate-400">Request #{supportRequest.id}</span>
             </div>
           </div>
         </div>
@@ -202,7 +202,7 @@ const SupportRequestDetail = ({ supportRequest, onClose, onConversationUpdated }
       {supportRequest.description && (
         <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-800">
           <p className="text-xs text-slate-600 dark:text-slate-300">
-            <span className="font-semibold">Mô tả:</span> {supportRequest.description}
+            <span className="font-semibold">Description:</span> {supportRequest.description}
           </p>
         </div>
       )}
@@ -216,15 +216,15 @@ const SupportRequestDetail = ({ supportRequest, onClose, onConversationUpdated }
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
               </svg>
             </div>
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Yêu cầu chưa được tiếp nhận</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">Nhấn "Tiếp nhận hỗ trợ" để bắt đầu cuộc trò chuyện với khách hàng.</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Request not yet accepted</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">Click "Accept Support" to start conversation with the customer.</p>
           </div>
         ) : loading ? (
           <div className="flex justify-center py-10">
             <Loader2 size={24} className="animate-spin text-slate-400" />
           </div>
         ) : messages.length === 0 ? (
-          <p className="text-center text-xs text-slate-400 py-10">Bắt đầu cuộc trò chuyện với khách hàng...</p>
+          <p className="text-center text-xs text-slate-400 py-10">Start conversation with customer...</p>
         ) : (
           messages.map(msg => (
             <MessageBubble key={msg.id} message={msg} isSelf={msg.senderId === user?.id} />
@@ -241,7 +241,7 @@ const SupportRequestDetail = ({ supportRequest, onClose, onConversationUpdated }
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={sending}
-            title="Đính kèm file"
+            title="Attach file"
             className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors flex-shrink-0"
           >
             <Paperclip size={16} />
@@ -252,7 +252,7 @@ const SupportRequestDetail = ({ supportRequest, onClose, onConversationUpdated }
           <button
             onClick={() => imgInputRef.current?.click()}
             disabled={sending}
-            title="Gửi ảnh"
+            title="Send image"
             className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors flex-shrink-0"
           >
             <Image size={16} />
@@ -263,7 +263,7 @@ const SupportRequestDetail = ({ supportRequest, onClose, onConversationUpdated }
           <button
             onClick={recording ? stopRecording : startRecording}
             disabled={sending}
-            title={recording ? 'Dừng ghi' : 'Ghi âm'}
+            title={recording ? 'Stop recording' : 'Record'}
             className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
               recording
                 ? 'bg-red-500 text-white animate-pulse'
@@ -278,7 +278,7 @@ const SupportRequestDetail = ({ supportRequest, onClose, onConversationUpdated }
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Nhập tin nhắn... (Enter để gửi)"
+            placeholder="Type a message... (Enter to send)"
             rows={1}
             className="flex-1 resize-none text-sm px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-400 text-slate-700 dark:text-slate-200 placeholder-slate-400 max-h-32"
             style={{ overflowY: text.split('\n').length > 3 ? 'auto' : 'hidden' }}

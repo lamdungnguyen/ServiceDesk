@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { type Ticket } from '../../types/ticket';
+import { type RoutingSuggestion, type SimilarTicket, type Ticket, type TicketAiSummary } from '../../types/ticket';
 import {
   assignTicket, getAllUsers, getAIPredictionForTicket, submitAIFeedback,
+  getSimilarTickets, getTicketAiSummary, getRoutingSuggestions,
   type Comment, type UserPayload, type AIPredictionPayload
 } from '../../api/apiClient';
 import { useAuth } from '../../context/auth';
@@ -10,8 +11,9 @@ import UserProfilePopover from '../UserProfilePopover';
 import {
   Clock, User, MessageSquare, Send, CheckCircle2,
   ChevronDown, Flag, AlertCircle, Inbox, Loader2,
-  Calendar, Tag, Brain, ThumbsUp, ThumbsDown, Sparkles
+  Calendar, Tag, Brain, ThumbsUp, ThumbsDown, Sparkles, Paperclip, Copy
 } from 'lucide-react';
+import { uploadMessageFile } from '../../api/chatApi';
 
 interface TicketDetailProps {
   ticket: Ticket | null;
@@ -78,7 +80,6 @@ function avatarColor(name?: string) {
   if (!name) return AVATAR_COLORS[0];
   return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
 }
-
 const CATEGORIES = ['NETWORK', 'ACCOUNT', 'INFRASTRUCTURE', 'HARDWARE', 'SOFTWARE', 'GENERAL'];
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
@@ -91,6 +92,18 @@ const SENTIMENT_ICON: Record<string, string> = {
   POSITIVE: '😊', NEUTRAL: '😐', NEGATIVE: '😠',
 };
 
+const IMPACT_STYLE: Record<string, string> = {
+  NONE:             'text-slate-500 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400',
+  SINGLE_USER:      'text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300',
+  MULTIPLE_USERS:   'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300',
+  BUSINESS_BLOCKING:'text-orange-600 bg-orange-50 border-orange-200 dark:bg-orange-950/40 dark:border-orange-800 dark:text-orange-300',
+  SYSTEM_OUTAGE:    'text-red-600 bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-800 dark:text-red-300',
+};
+const IMPACT_ICON: Record<string, string> = {
+  NONE: '⬜', SINGLE_USER: '👤', MULTIPLE_USERS: '👥',
+  BUSINESS_BLOCKING: '⚠️', SYSTEM_OUTAGE: '🔴',
+};
+
 const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTicketAssigned, onPostComment, agentName }: TicketDetailProps) => {
   const { user } = useAuth();
   const [commentText, setCommentText] = useState('');
@@ -99,6 +112,8 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
   const [isSending, setIsSending] = useState(false);
   const [agents, setAgents] = useState<UserPayload[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // AI Prediction state
   const [aiPrediction, setAiPrediction] = useState<AIPredictionPayload | null>(null);
@@ -107,6 +122,13 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
   const [correctedPriority, setCorrectedPriority] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackDone, setFeedbackDone] = useState(false);
+  const [aiSummary, setAiSummary] = useState<TicketAiSummary | null>(null);
+  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
+  const [aiSummaryError, setAiSummaryError] = useState<string | null>(null);
+  const [similarTickets, setSimilarTickets] = useState<SimilarTicket[]>([]);
+  const [similarLoading, setSimilarLoading] = useState(false);
+  const [routingSuggestions, setRoutingSuggestions] = useState<RoutingSuggestion[]>([]);
+  const [routingLoading, setRoutingLoading] = useState(false);
 
   useEffect(() => {
     getAllUsers().then(users => {
@@ -118,18 +140,32 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
   useEffect(() => {
     if (!ticket) return;
     setAiPrediction(null);
+    setAiSummary(null);
+    setAiSummaryError(null);
+    setSimilarTickets([]);
+    setRoutingSuggestions([]);
     setFeedbackDone(false);
     setAiLoading(true);
+    setSimilarLoading(true);
+    setRoutingLoading(true);
     getAIPredictionForTicket(ticket.id)
       .then(data => {
         setAiPrediction(data);
         if (data) {
           setCorrectedCategory(data.correctedCategory ?? data.predictedCategory ?? '');
           setCorrectedPriority(data.correctedPriority ?? data.predictedPriority ?? '');
-          if (data.agentCorrected) setFeedbackDone(true);
+          if (data.correctedCategory || data.correctedPriority) setFeedbackDone(true);
         }
       })
       .finally(() => setAiLoading(false));
+    getSimilarTickets(ticket.id)
+      .then(setSimilarTickets)
+      .catch(() => setSimilarTickets([]))
+      .finally(() => setSimilarLoading(false));
+    getRoutingSuggestions(ticket.id)
+      .then(setRoutingSuggestions)
+      .catch(() => setRoutingSuggestions([]))
+      .finally(() => setRoutingLoading(false));
   }, [ticket?.id]);
 
   const handleSubmitFeedback = async () => {
@@ -148,6 +184,30 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
     } finally {
       setIsSubmittingFeedback(false);
     }
+  };
+
+  const handleGenerateSummary = async () => {
+    if (!ticket) return;
+    setAiSummaryLoading(true);
+    setAiSummaryError(null);
+    try {
+      const summary = await getTicketAiSummary(ticket.id);
+      setAiSummary(summary);
+    } catch {
+      setAiSummaryError('Could not generate AI summary.');
+    } finally {
+      setAiSummaryLoading(false);
+    }
+  };
+
+  const handleInsertSuggestedReply = () => {
+    if (!aiSummary?.suggestedReply) return;
+    setCommentText(prev => prev ? `${prev}\n\n${aiSummary.suggestedReply}` : aiSummary.suggestedReply);
+  };
+
+  const handleCopySuggestedReply = async () => {
+    if (!aiSummary?.suggestedReply || !navigator.clipboard) return;
+    await navigator.clipboard.writeText(aiSummary.suggestedReply);
   };
 
   useEffect(() => {
@@ -185,9 +245,26 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendComment();
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploading(true);
+      const { fileUrl } = await uploadMessageFile(file);
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081';
+      const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${backendUrl}${fileUrl}`;
+      setCommentText(prev => prev + (prev ? '\n' : '') + `File attached: ${fullUrl}`);
+    } catch (err) {
+      console.error("Failed to upload file", err);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -200,6 +277,18 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
       if (onTicketAssigned) onTicketAssigned(ticket.id, newAssigneeId);
     } catch (err) {
       console.error('Failed to assign ticket', err);
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleAssignSuggestedAgent = async (assigneeId: number) => {
+    setIsAssigning(true);
+    try {
+      await assignTicket(ticket.id, assigneeId);
+      if (onTicketAssigned) onTicketAssigned(ticket.id, assigneeId);
+    } catch (err) {
+      console.error('Failed to assign suggested agent', err);
     } finally {
       setIsAssigning(false);
     }
@@ -355,7 +444,26 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
             {aiPrediction?.predictionSource && (
               <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full
                 bg-violet-200 dark:bg-violet-800 text-violet-700 dark:text-violet-300">
-                {aiPrediction.predictionSource === 'RULE_BASED' ? '⚡ Rule-Based' : '🤖 ML Zero-Shot'}
+                {aiPrediction.predictionSource === 'RULE_BASED'
+                  ? '⚡ Rule-Based'
+                  : aiPrediction.predictionSource === 'FALLBACK'
+                    ? 'Fallback'
+                    : '🤖 ML Zero-Shot'}
+              </span>
+            )}
+            {aiPrediction?.decisionStatus && (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                aiPrediction.decisionStatus === 'AUTO_APPLIED'
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                  : aiPrediction.decisionStatus === 'SUGGESTED'
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                    : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+              }`}>
+                {aiPrediction.decisionStatus === 'AUTO_APPLIED'
+                  ? 'Auto-applied'
+                  : aiPrediction.decisionStatus === 'SUGGESTED'
+                    ? 'Suggested'
+                    : 'Fallback'}
               </span>
             )}
           </div>
@@ -363,22 +471,22 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
           <div className="px-5 py-4">
             {aiLoading ? (
               <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
-                <Loader2 size={15} className="animate-spin" /> Đang tải dự đoán AI...
+                <Loader2 size={15} className="animate-spin" /> Loading AI prediction...
               </div>
             ) : !aiPrediction ? (
-              <p className="text-sm text-slate-400 italic">Chưa có dữ liệu dự đoán AI cho ticket này.</p>
+              <p className="text-sm text-slate-400 italic">No AI prediction data for this ticket yet.</p>
             ) : (
               <>
                 {/* Prediction chips */}
                 <div className="flex flex-wrap gap-2 mb-4">
                   <div className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
                     <Tag size={11} className="text-violet-500" />
-                    <span className="text-slate-500 dark:text-slate-400">Danh mục:</span>
+                    <span className="text-slate-500 dark:text-slate-400">Category:</span>
                     <span className="text-violet-700 dark:text-violet-300 font-bold">{aiPrediction.predictedCategory ?? '—'}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
                     <Flag size={11} className="text-amber-500" />
-                    <span className="text-slate-500 dark:text-slate-400">Ưu tiên:</span>
+                    <span className="text-slate-500 dark:text-slate-400">Priority:</span>
                     <span className="text-amber-700 dark:text-amber-300 font-bold">{aiPrediction.predictedPriority ?? '—'}</span>
                   </div>
                   {aiPrediction.predictedSentiment && (
@@ -387,48 +495,189 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
                       <span>{aiPrediction.predictedSentiment}</span>
                     </div>
                   )}
-                  {aiPrediction.confidence != null && (
+                  {aiPrediction.predictedImpact && aiPrediction.predictedImpact !== 'NONE' && (
+                    <div className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 border rounded-lg shadow-sm ${IMPACT_STYLE[aiPrediction.predictedImpact] ?? IMPACT_STYLE.NONE}`}>
+                      <span>{IMPACT_ICON[aiPrediction.predictedImpact] ?? '⬜'}</span>
+                      <span className="text-slate-500 dark:text-slate-400">Impact:</span>
+                      <span className="font-bold">{aiPrediction.predictedImpact.replace(/_/g, ' ')}</span>
+                    </div>
+                  )}
+                  {aiPrediction.confidenceScore != null && (
                     <div className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
                       <Sparkles size={11} className="text-sky-500" />
                       <span className="text-slate-500 dark:text-slate-400">Confidence:</span>
-                      <span className="text-sky-700 dark:text-sky-300 font-bold">{Math.round(aiPrediction.confidence * 100)}%</span>
+                      <span className="text-sky-700 dark:text-sky-300 font-bold">{Math.round(aiPrediction.confidenceScore * 100)}%</span>
                     </div>
                   )}
                 </div>
 
-                {/* Feedback form hoặc kết quả đã xác nhận */}
+                {/* Urgency signals */}
+                {aiPrediction.urgencySignals && aiPrediction.urgencySignals.trim() !== '' && (
+                  <div className="mb-3 flex flex-wrap gap-1.5 items-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Signals:</span>
+                    {aiPrediction.urgencySignals.split(' | ').map(sig => (
+                      <span
+                        key={sig}
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 border border-red-200 text-red-600 dark:bg-red-950/40 dark:border-red-800 dark:text-red-300"
+                      >
+                        ⚡ {sig}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {aiPrediction.modelVersion && (
+                  <p className="mb-3 text-[11px] text-slate-500 dark:text-slate-400">
+                    Model version: <span className="font-semibold">{aiPrediction.modelVersion}</span>
+                  </p>
+                )}
+
+                <div className="mb-4 space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={handleGenerateSummary}
+                      disabled={aiSummaryLoading}
+                      className="flex items-center gap-2 px-3 py-2 text-xs font-bold bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-700 text-violet-700 dark:text-violet-300 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-900/30 disabled:opacity-50"
+                    >
+                      {aiSummaryLoading ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                      Generate AI Summary
+                    </button>
+                    {aiSummaryError && <span className="text-xs font-semibold text-red-500">{aiSummaryError}</span>}
+                  </div>
+
+                  {aiSummary && (
+                    <div className="rounded-xl border border-violet-200 dark:border-violet-800 bg-white/80 dark:bg-slate-900/50 p-4 space-y-3">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Summary</p>
+                        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{aiSummary.summary}</p>
+                      </div>
+                      {aiSummary.suggestedNextSteps.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Next Steps</p>
+                          <ul className="list-disc list-inside space-y-1 text-sm text-slate-700 dark:text-slate-300">
+                            {aiSummary.suggestedNextSteps.map(step => <li key={step}>{step}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      <div className="rounded-lg bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 p-3">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Suggested Reply</p>
+                        <p className="text-sm text-slate-700 dark:text-slate-300">{aiSummary.suggestedReply}</p>
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={handleInsertSuggestedReply}
+                            className="px-3 py-1.5 text-xs font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-lg"
+                          >
+                            Insert
+                          </button>
+                          <button
+                            onClick={() => void handleCopySuggestedReply()}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-lg"
+                          >
+                            <Copy size={12} />
+                            Copy
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/40 p-3">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Similar Tickets</p>
+                    {similarLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <Loader2 size={13} className="animate-spin" /> Loading matches...
+                      </div>
+                    ) : similarTickets.length === 0 ? (
+                      <p className="text-xs text-slate-400">No similar open tickets found.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {similarTickets.map(match => (
+                          <div key={match.id} className="rounded-lg border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">#{match.id} {match.title}</p>
+                              <span className="text-[10px] font-bold text-violet-600 dark:text-violet-300">{Math.round(match.score * 100)}%</span>
+                            </div>
+                            <p className="mt-1 text-[11px] text-slate-400">
+                              {match.status} · {match.category ?? 'GENERAL'} · {match.priority}
+                              {match.matchedTerms.length > 0 ? ` · ${match.matchedTerms.join(', ')}` : ''}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/40 p-3">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Routing Suggestions</p>
+                    {routingLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <Loader2 size={13} className="animate-spin" /> Loading assignee suggestions...
+                      </div>
+                    ) : routingSuggestions.length === 0 ? (
+                      <p className="text-xs text-slate-400">No routing suggestions available.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {routingSuggestions.map(suggestion => (
+                          <div key={suggestion.assigneeId} className="rounded-lg border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
+                                  {suggestion.assigneeName}
+                                  {suggestion.agentType ? ` · ${suggestion.agentType}` : ''}
+                                </p>
+                                <p className="mt-1 text-[11px] text-slate-400">{suggestion.reason}</p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[10px] font-bold text-violet-600 dark:text-violet-300">{Math.round(suggestion.score * 100)}%</span>
+                                <button
+                                  onClick={() => void handleAssignSuggestedAgent(suggestion.assigneeId)}
+                                  disabled={isAssigning || ticket.assigneeId === suggestion.assigneeId}
+                                  className="px-2.5 py-1 text-[11px] font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {ticket.assigneeId === suggestion.assigneeId ? 'Assigned' : 'Assign'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Feedback form or confirmed result */}
                 {feedbackDone ? (
                   <div className="flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-3">
                     <CheckCircle2 size={16} />
-                    Đã xác nhận — Danh mục: <strong>{correctedCategory}</strong> · Ưu tiên: <strong>{correctedPriority}</strong>
+                    Confirmed — Category: <strong>{correctedCategory}</strong> · Priority: <strong>{correctedPriority}</strong>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Xác nhận hoặc sửa dự đoán AI:</p>
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Confirm or correct AI prediction:</p>
                     <div className="flex gap-2 flex-wrap">
                       <div className="flex-1 min-w-[130px]">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Danh mục</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Category</label>
                         <div className="relative">
                           <select
                             value={correctedCategory}
                             onChange={e => setCorrectedCategory(e.target.value)}
                             className="w-full appearance-none text-xs font-bold rounded-lg px-3 py-2 pr-7 border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 outline-none focus:ring-2 focus:ring-violet-400/30 focus:border-violet-400 transition-all cursor-pointer"
                           >
-                            <option value="">-- Chọn --</option>
+                            <option value="">-- Select --</option>
                             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                           <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
                         </div>
                       </div>
                       <div className="flex-1 min-w-[120px]">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Ưu tiên</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Priority</label>
                         <div className="relative">
                           <select
                             value={correctedPriority}
                             onChange={e => setCorrectedPriority(e.target.value)}
                             className="w-full appearance-none text-xs font-bold rounded-lg px-3 py-2 pr-7 border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 outline-none focus:ring-2 focus:ring-violet-400/30 focus:border-violet-400 transition-all cursor-pointer"
                           >
-                            <option value="">-- Chọn --</option>
+                            <option value="">-- Select --</option>
                             {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
                           </select>
                           <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
@@ -442,20 +691,20 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
                         className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isSubmittingFeedback
-                          ? <><Loader2 size={13} className="animate-spin" /> Đang gửi...</>
-                          : <><ThumbsUp size={13} /> Xác nhận / Sửa AI</>}
+                          ? <><Loader2 size={13} className="animate-spin" /> Submitting...</>
+                          : <><ThumbsUp size={13} /> Confirm / Edit AI</>}
                       </button>
                       {correctedCategory === aiPrediction.predictedCategory &&
                        correctedPriority === aiPrediction.predictedPriority && (
                         <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                          <ThumbsUp size={11} /> AI đoán đúng!
+                          <ThumbsUp size={11} /> AI predicted correctly!
                         </span>
                       )}
                       {(correctedCategory !== aiPrediction.predictedCategory ||
                         correctedPriority !== aiPrediction.predictedPriority) &&
                         correctedCategory && correctedPriority && (
                         <span className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
-                          <ThumbsDown size={11} /> Đang sửa lại
+                          <ThumbsDown size={11} /> Correcting
                         </span>
                       )}
                     </div>
@@ -560,10 +809,19 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
               value={commentText}
               onChange={e => setCommentText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Add a comment... (Ctrl+Enter to send)"
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-4 pr-12 py-3 text-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 dark:focus:border-blue-500 outline-none resize-none min-h-[44px] max-h-[120px] text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 transition-all"
+              placeholder="Add a comment... (Enter to send, Shift+Enter for newline)"
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-4 pr-[80px] py-3 text-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 dark:focus:border-blue-500 outline-none resize-none min-h-[44px] max-h-[120px] text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 transition-all"
               rows={2}
             />
+            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || isSending}
+              className="absolute right-12 bottom-2 p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors disabled:opacity-40"
+              title="Attach File"
+            >
+              {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
+            </button>
             <button
               onClick={handleSendComment}
               disabled={!commentText.trim() || isSending}
@@ -573,7 +831,7 @@ const TicketDetail = ({ ticket, comments, commentsLoading, onUpdateStatus, onTic
             </button>
           </div>
         </div>
-        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 ml-11 transition-colors">Press Ctrl+Enter to submit quickly</p>
+        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 ml-11 transition-colors">Press Enter to send, Shift+Enter for newline</p>
       </div>
     </div>
   );

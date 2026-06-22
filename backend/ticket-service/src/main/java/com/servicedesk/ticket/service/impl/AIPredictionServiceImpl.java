@@ -38,6 +38,19 @@ public class AIPredictionServiceImpl implements AIPredictionService {
             String description,
             AIResponse aiResponse
     ) {
+        saveInitialPrediction(ticketId, title, description, aiResponse, "FALLBACK", false);
+    }
+
+    @Override
+    @Transactional
+    public void saveInitialPrediction(
+            Long ticketId,
+            String title,
+            String description,
+            AIResponse aiResponse,
+            String decisionStatus,
+            boolean aiApplied
+    ) {
         String combinedText = buildTicketText(title, description);
 
         AIPrediction prediction = AIPrediction.builder()
@@ -48,6 +61,9 @@ public class AIPredictionServiceImpl implements AIPredictionService {
                 .predictedCategory(aiResponse.getCategory())
                 .predictedPriority(aiResponse.getPriority())
                 .predictedSentiment(aiResponse.getSentiment())
+                .predictedImpact(aiResponse.getImpact())
+                .impactReason(aiResponse.getImpactReason())
+                .urgencySignals(joinSignals(aiResponse.getUrgencySignals()))
                 .predictionSource(
                     aiResponse.getPredictionSource() != null
                         ? aiResponse.getPredictionSource()
@@ -58,6 +74,9 @@ public class AIPredictionServiceImpl implements AIPredictionService {
                         ? aiResponse.getConfidenceScore()
                         : 0.0
                 )
+                .modelVersion(aiResponse.getModelVersion())
+                .decisionStatus(decisionStatus != null ? decisionStatus : "FALLBACK")
+                .aiApplied(aiApplied)
                 .agentCorrected(false)
                 .embeddingGenerated(false)
                 .build();
@@ -118,8 +137,14 @@ public class AIPredictionServiceImpl implements AIPredictionService {
                 .predictedCategory(latestPrediction.getPredictedCategory())
                 .predictedPriority(latestPrediction.getPredictedPriority())
                 .predictedSentiment(latestPrediction.getPredictedSentiment())
+                .predictedImpact(latestPrediction.getPredictedImpact())
+                .impactReason(latestPrediction.getImpactReason())
+                .urgencySignals(latestPrediction.getUrgencySignals())
                 .predictionSource(latestPrediction.getPredictionSource())
                 .confidenceScore(latestPrediction.getConfidenceScore())
+                .modelVersion(latestPrediction.getModelVersion())
+                .decisionStatus(latestPrediction.getDecisionStatus())
+                .aiApplied(latestPrediction.getAiApplied())
                 // Correction
                 .correctedCategory(effectiveCorrectedCategory)
                 .correctedPriority(effectiveCorrectedPriority)
@@ -148,8 +173,14 @@ public class AIPredictionServiceImpl implements AIPredictionService {
                 .correctedCategory(saved.getCorrectedCategory())
                 .predictedPriority(saved.getPredictedPriority())
                 .correctedPriority(saved.getCorrectedPriority())
+                .predictedImpact(saved.getPredictedImpact())
+                .impactReason(saved.getImpactReason())
+                .urgencySignals(saved.getUrgencySignals())
                 .predictionSource(saved.getPredictionSource())
                 .confidenceScore(saved.getConfidenceScore())
+                .modelVersion(saved.getModelVersion())
+                .decisionStatus(saved.getDecisionStatus())
+                .aiApplied(saved.getAiApplied())
                 .agentCorrected(saved.getAgentCorrected())
                 .createdAt(saved.getCreatedAt())
                 .message(message)
@@ -170,7 +201,7 @@ public class AIPredictionServiceImpl implements AIPredictionService {
 
         long totalVerified  = aiPredictionRepository.countVerifiedPredictions();
         long totalCorrected = aiPredictionRepository.countCorrectedPredictions();
-        long totalCorrect   = totalVerified - totalCorrected;
+        long totalCorrect   = aiPredictionRepository.countFullyCorrectPredictions();
 
         Map<String, Double> categoryAccuracy      = new LinkedHashMap<>();
         Map<String, Long>   categoryVerifiedCount = new LinkedHashMap<>();
@@ -264,6 +295,13 @@ public class AIPredictionServiceImpl implements AIPredictionService {
             return predictedValue;
         }
         return agentValue.trim().toUpperCase();
+    }
+
+    private String joinSignals(List<String> signals) {
+        if (signals == null || signals.isEmpty()) {
+            return null;
+        }
+        return String.join(" | ", signals);
     }
 
     private long toLong(Object value) {

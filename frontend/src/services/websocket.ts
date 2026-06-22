@@ -1,5 +1,5 @@
 import { Client, type IMessage } from '@stomp/stompjs';
-import type { DirectMessagePayload, SupportRequestPayload } from '../api/apiClient';
+import type { DirectMessagePayload, SupportRequestPayload, UserPresencePayload } from '../api/apiClient';
 import SockJS from 'sockjs-client';
 
 export interface ChatMessagePayload {
@@ -214,6 +214,50 @@ export function subscribeToNotifications(userId: number, onNotification: Notific
 
 // ─── Call Signaling ──────────────────────────────────────────────────────────
 
+type UserPresenceHandler = (presence: UserPresencePayload) => void;
+
+export function subscribeToUserPresence(onPresence: UserPresenceHandler): () => void {
+  const destination = '/topic/presence/users';
+
+  if (subscriptions.has(destination)) {
+    subscriptions.get(destination)!.unsubscribe();
+    subscriptions.delete(destination);
+  }
+
+  let isUnsubscribed = false;
+
+  const doPresenceSubscribe = () => {
+    if (!stompClient?.connected) return;
+    const sub = stompClient.subscribe(destination, (message: IMessage) => {
+      try {
+        const parsed: UserPresencePayload = JSON.parse(message.body);
+        onPresence(parsed);
+      } catch (err) {
+        console.error('[WS] Failed to parse user presence', err);
+      }
+    });
+    subscriptions.set(destination, sub);
+  };
+
+  if (!stompClient?.connected) {
+    connectWebSocket().then(() => {
+      if (!isUnsubscribed) {
+        doPresenceSubscribe();
+      }
+    }).catch(err => console.error('[WS] connect failed for user presence', err));
+  } else {
+    doPresenceSubscribe();
+  }
+
+  return () => {
+    isUnsubscribed = true;
+    if (subscriptions.has(destination)) {
+      subscriptions.get(destination)!.unsubscribe();
+      subscriptions.delete(destination);
+    }
+  };
+}
+
 export type CallSignalType =
   | 'CALL_REQUEST'
   | 'CALL_ACCEPT'
@@ -337,6 +381,117 @@ export function sendDmMessage(payload: {
   stompClient.publish({
     destination: '/app/dm.send',
     body: JSON.stringify(payload),
+  });
+}
+
+export function subscribeToDmUpdates(conversationId: number, onUpdate: DmMessageHandler): () => void {
+  const destination = `/topic/dm/${conversationId}/update`;
+
+  if (subscriptions.has(destination)) {
+    subscriptions.get(destination)!.unsubscribe();
+    subscriptions.delete(destination);
+  }
+
+  let isUnsubscribed = false;
+
+  const doSubscribe = () => {
+    if (!stompClient?.connected) return;
+    const sub = stompClient.subscribe(destination, (message: IMessage) => {
+      try {
+        const parsed: DirectMessagePayload = JSON.parse(message.body);
+        onUpdate(parsed);
+      } catch (err) {
+        console.error('[WS] Failed to parse DM update', err);
+      }
+    });
+    subscriptions.set(destination, sub);
+  };
+
+  if (!stompClient?.connected) {
+    connectWebSocket()
+      .then(() => { if (!isUnsubscribed) doSubscribe(); })
+      .catch(err => console.error('[WS] connect failed for DM update', err));
+  } else {
+    doSubscribe();
+  }
+
+  return () => {
+    isUnsubscribed = true;
+    if (subscriptions.has(destination)) {
+      subscriptions.get(destination)!.unsubscribe();
+      subscriptions.delete(destination);
+    }
+  };
+}
+
+export interface DmTypingPayload {
+  conversationId: number;
+  userId: number;
+  userName: string;
+  isTyping: boolean;
+}
+
+export function subscribeToDmTyping(conversationId: number, onTyping: (p: DmTypingPayload) => void): () => void {
+  const destination = `/topic/dm/${conversationId}/typing`;
+
+  if (subscriptions.has(destination)) {
+    subscriptions.get(destination)!.unsubscribe();
+    subscriptions.delete(destination);
+  }
+
+  let isUnsubscribed = false;
+
+  const doSubscribe = () => {
+    if (!stompClient?.connected) return;
+    const sub = stompClient.subscribe(destination, (message: IMessage) => {
+      try {
+        const parsed: DmTypingPayload = JSON.parse(message.body);
+        onTyping(parsed);
+      } catch (err) {
+        console.error('[WS] Failed to parse DM typing', err);
+      }
+    });
+    subscriptions.set(destination, sub);
+  };
+
+  if (!stompClient?.connected) {
+    connectWebSocket()
+      .then(() => { if (!isUnsubscribed) doSubscribe(); })
+      .catch(err => console.error('[WS] connect failed for DM typing', err));
+  } else {
+    doSubscribe();
+  }
+
+  return () => {
+    isUnsubscribed = true;
+    if (subscriptions.has(destination)) {
+      subscriptions.get(destination)!.unsubscribe();
+      subscriptions.delete(destination);
+    }
+  };
+}
+
+export function sendDmRead(conversationId: number, messageId: number, userId: number): void {
+  if (!stompClient?.connected) return;
+  stompClient.publish({
+    destination: '/app/dm.read',
+    body: JSON.stringify({ conversationId, messageId, userId }),
+  });
+}
+
+export function sendDmReact(conversationId: number, messageId: number, userId: number, reaction: string): void {
+  if (!stompClient?.connected) return;
+  stompClient.publish({
+    destination: '/app/dm.react',
+    body: JSON.stringify({ conversationId, messageId, userId, reaction }),
+  });
+}
+
+export function sendDmTyping(conversationId: number, userId: number, userName: string, isTyping: boolean): void {
+  if (!stompClient?.connected) return;
+  stompClient.publish({
+    destination: '/app/dm.typing',
+    body: JSON.stringify({ conversationId, userId, userName, isTyping }),
   });
 }
 

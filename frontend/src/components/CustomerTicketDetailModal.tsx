@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Loader2, Calendar, Clock, AlertCircle, MessageSquare, Send, Tag, Flag, Star } from 'lucide-react';
+import { X, Loader2, Calendar, Clock, AlertCircle, MessageSquare, Send, Tag, Flag, Star, Paperclip } from 'lucide-react';
 import type { Ticket } from '../types/ticket';
 import { getComments, getErrorMessage, submitRating, getRatingByTicket, type Comment, type RatingPayload } from '../api/apiClient';
+import { uploadMessageFile } from '../api/chatApi';
 import { useAuth } from '../context/auth';
 import { subscribeToTicket, sendChatMessage, type ChatMessagePayload } from '../services/websocket';
 import CallPanel from './CallPanel';
@@ -51,6 +52,8 @@ const CustomerTicketDetailModal = ({ ticket, isOpen, onClose }: CustomerTicketDe
   const [loading, setLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Rating state
   const [existingRating, setExistingRating] = useState<RatingPayload | null>(null);
@@ -144,9 +147,26 @@ const CustomerTicketDetailModal = ({ ticket, isOpen, onClose }: CustomerTicketDe
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendComment();
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploading(true);
+      const { fileUrl } = await uploadMessageFile(file);
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081';
+      const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${backendUrl}${fileUrl}`;
+      setCommentText(prev => prev + (prev ? '\n' : '') + `File attached: ${fullUrl}`);
+    } catch (err) {
+      console.error("Failed to upload file", err);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -372,10 +392,19 @@ const CustomerTicketDetailModal = ({ ticket, isOpen, onClose }: CustomerTicketDe
                   value={commentText}
                   onChange={e => setCommentText(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Add a comment... (Ctrl+Enter to send)"
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-4 pr-12 py-3 text-sm focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 outline-none resize-none min-h-[44px] max-h-[120px] text-slate-800 dark:text-slate-200 placeholder-slate-400 transition-all"
+                  placeholder="Add a comment... (Enter to send, Shift+Enter for newline)"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-4 pr-[80px] py-3 text-sm focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 outline-none resize-none min-h-[44px] max-h-[120px] text-slate-800 dark:text-slate-200 placeholder-slate-400 transition-all"
                   rows={2}
                 />
+                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading || isSending}
+                  className="absolute right-12 bottom-2 p-2 text-slate-400 hover:text-primary-600 transition-colors disabled:opacity-40"
+                  title="Attach File"
+                >
+                  {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
+                </button>
                 <button
                   onClick={handleSendComment}
                   disabled={!commentText.trim() || isSending}
@@ -384,6 +413,7 @@ const CustomerTicketDetailModal = ({ ticket, isOpen, onClose }: CustomerTicketDe
                   {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 </button>
               </div>
+              <p className="text-[10px] text-slate-400 mt-2 px-1">Press Enter to send, Shift+Enter for newline</p>
             </div>
           </div>
         </div>

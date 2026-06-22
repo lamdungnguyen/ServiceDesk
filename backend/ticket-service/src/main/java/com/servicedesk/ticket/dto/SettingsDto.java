@@ -32,4 +32,7 @@ public class SettingsDto {
 
     // AI
     private String aiServiceUrl;
+    private Boolean aiAutoApplyEnabled;
+    private Double aiAutoApplyThreshold;
+    private Double aiSuggestThreshold;
 }

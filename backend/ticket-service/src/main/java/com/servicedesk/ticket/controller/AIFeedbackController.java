@@ -1,5 +1,6 @@
 package com.servicedesk.ticket.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.servicedesk.ticket.dto.AIFeedbackRequest;
 import com.servicedesk.ticket.dto.AIFeedbackResponse;
 import com.servicedesk.ticket.entity.AIPrediction;
@@ -10,20 +11,20 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
-/**
- * REST API cho Agent Correction Feedback và CSV Export.
- *
- * Endpoints:
- *   POST   /api/v1/ai-feedback          — Agent submit correction
- *   GET    /api/v1/ai-feedback/export/csv — Export training data
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/ai-feedback")
@@ -32,26 +33,8 @@ public class AIFeedbackController {
 
     private final AIPredictionService aiPredictionService;
     private final AIPredictionRepository aiPredictionRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // POST /api/v1/ai-feedback — Agent Submit Correction
-    // ──────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Agent submit correction cho AI prediction.
-     *
-     * Body:
-     * {
-     *   "ticketId": 123,
-     *   "correctedCategory": "HARDWARE",   // null nếu đồng ý với AI
-     *   "correctedPriority": "HIGH"        // null nếu đồng ý với AI
-     * }
-     *
-     * Quy tắc:
-     * - corrected* null = Agent đồng ý với AI
-     * - Chỉ set agentCorrected=true khi có field thực sự khác
-     * - KHÔNG overwrite prediction cũ — tạo record mới
-     */
     @PostMapping
     public ResponseEntity<AIFeedbackResponse> submitFeedback(
             @Valid @RequestBody AIFeedbackRequest request
@@ -62,19 +45,9 @@ public class AIFeedbackController {
                 request.getCorrectedPriority()
         );
 
-        AIFeedbackResponse response = aiPredictionService.applyCorrection(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(aiPredictionService.applyCorrection(request));
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // GET /api/v1/ai-feedback/ticket/{ticketId} — Lấy prediction mới nhất
-    // ──────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Trả về AI prediction mới nhất cho một ticket.
-     * Agent dùng để xem dự đoán AI khi mở ticket.
-     * Trả 404 nếu ticket chưa có prediction.
-     */
     @GetMapping("/ticket/{ticketId}")
     public ResponseEntity<AIPrediction> getLatestPrediction(@PathVariable Long ticketId) {
         return aiPredictionRepository
@@ -83,63 +56,34 @@ public class AIFeedbackController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-
-
-    /**
-     * Export training data dưới dạng CSV.
-     *
-     * Chỉ export records đã được Agent verify (correctedCategory IS NOT NULL).
-     * correct_category = correctedCategory nếu AI sai, predictedCategory nếu AI đúng.
-     *
-     * Columns:
-     *   ticket_text, correct_category, correct_priority,
-     *   prediction_source, confidence_score, agent_corrected
-     *
-     * Format: UTF-8 BOM (tương thích Excel + Python pandas)
-     *
-     * Dùng cho:
-     *   - PhoBERT fine-tuning
-     *   - XLM-Roberta training
-     *   - Dataset analysis
-     */
     @GetMapping("/export/csv")
     public void exportTrainingData(HttpServletResponse response) throws IOException {
         response.setContentType("text/csv; charset=UTF-8");
         response.setCharacterEncoding("UTF-8");
-        response.setHeader(
-                "Content-Disposition",
-                "attachment; filename=\"ai_training_data.csv\""
-        );
+        response.setHeader("Content-Disposition", "attachment; filename=\"ai_training_data.csv\"");
 
         List<AIPrediction> records = aiPredictionRepository.findVerifiedPredictionsForExport();
-
         PrintWriter writer = response.getWriter();
-
-        // UTF-8 BOM — tương thích Excel khi mở file
         writer.write('\uFEFF');
-
-        // Header
-        writer.println("ticket_text,correct_category,correct_priority,prediction_source,confidence_score,agent_corrected");
+        writer.println("ticket_text,correct_category,correct_priority,predicted_category,predicted_priority,predicted_sentiment,predicted_impact,impact_reason,urgency_signals,prediction_source,confidence_score,model_version,agent_corrected,created_at");
 
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
         for (AIPrediction record : records) {
-            // correct_category: nếu AI đúng → dùng predictedCategory
-            String correctCategory = record.getAgentCorrected()
-                    ? record.getCorrectedCategory()
-                    : record.getPredictedCategory();
-
-            String correctPriority = record.getAgentCorrected()
-                    ? record.getCorrectedPriority()
-                    : record.getPredictedPriority();
-
             writer.println(String.join(",",
                     escapeCsvField(record.getTicketText()),
-                    escapeCsvField(correctCategory),
-                    escapeCsvField(correctPriority),
+                    escapeCsvField(resolveCorrectCategory(record)),
+                    escapeCsvField(resolveCorrectPriority(record)),
+                    escapeCsvField(record.getPredictedCategory()),
+                    escapeCsvField(record.getPredictedPriority()),
+                    escapeCsvField(record.getPredictedSentiment()),
+                    escapeCsvField(record.getPredictedImpact()),
+                    escapeCsvField(record.getImpactReason()),
+                    escapeCsvField(record.getUrgencySignals()),
                     escapeCsvField(record.getPredictionSource()),
                     String.format("%.4f", record.getConfidenceScore() != null ? record.getConfidenceScore() : 0.0),
-                    record.getAgentCorrected() != null ? record.getAgentCorrected().toString() : "false"
+                    escapeCsvField(record.getModelVersion()),
+                    record.getAgentCorrected() != null ? record.getAgentCorrected().toString() : "false",
+                    escapeCsvField(record.getCreatedAt() != null ? dtf.format(record.getCreatedAt()) : "")
             ));
         }
 
@@ -147,20 +91,67 @@ public class AIFeedbackController {
         log.info("[AIFeedback] Exported {} training records to CSV", records.size());
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // PRIVATE HELPERS
-    // ──────────────────────────────────────────────────────────────────────────
+    @GetMapping("/export/jsonl")
+    public void exportTrainingDataJsonl(HttpServletResponse response) throws IOException {
+        response.setContentType("application/x-ndjson; charset=UTF-8");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"ai_training_data.jsonl\"");
 
-    /**
-     * Escape CSV field: wrap trong quotes nếu có dấu phẩy, newline, hoặc quotes.
-     * Escape double-quote thành hai double-quotes (RFC 4180).
-     */
+        List<AIPrediction> records = aiPredictionRepository.findVerifiedPredictionsForExport();
+        PrintWriter writer = response.getWriter();
+
+        for (AIPrediction record : records) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("text", record.getTicketText());
+            row.put("labels", Map.of(
+                    "category", valueOrEmpty(resolveCorrectCategory(record)),
+                    "priority", valueOrEmpty(resolveCorrectPriority(record)),
+                    "impact", valueOrEmpty(record.getPredictedImpact())
+            ));
+            row.put("prediction", Map.of(
+                    "category", valueOrEmpty(record.getPredictedCategory()),
+                    "priority", valueOrEmpty(record.getPredictedPriority()),
+                    "sentiment", valueOrEmpty(record.getPredictedSentiment()),
+                    "impact", valueOrEmpty(record.getPredictedImpact()),
+                    "impactReason", valueOrEmpty(record.getImpactReason()),
+                    "urgencySignals", valueOrEmpty(record.getUrgencySignals()),
+                    "source", valueOrEmpty(record.getPredictionSource()),
+                    "confidenceScore", record.getConfidenceScore() != null ? record.getConfidenceScore() : 0.0,
+                    "modelVersion", valueOrEmpty(record.getModelVersion()),
+                    "agentCorrected", record.getAgentCorrected() != null && record.getAgentCorrected()
+            ));
+            row.put("createdAt", record.getCreatedAt() != null ? record.getCreatedAt().toString() : null);
+            writer.println(objectMapper.writeValueAsString(row));
+        }
+
+        writer.flush();
+        log.info("[AIFeedback] Exported {} training records to JSONL", records.size());
+    }
+
     private String escapeCsvField(String value) {
-        if (value == null) return "";
+        if (value == null) {
+            return "";
+        }
         String escaped = value.replace("\"", "\"\"");
-        if (escaped.contains(",") || escaped.contains("\n") || escaped.contains("\"")) {
+        if (escaped.contains(",") || escaped.contains("\n") || escaped.contains("\r") || escaped.contains("\"")) {
             return "\"" + escaped + "\"";
         }
         return escaped;
+    }
+
+    private String resolveCorrectCategory(AIPrediction record) {
+        return record.getCorrectedCategory() != null
+                ? record.getCorrectedCategory()
+                : record.getPredictedCategory();
+    }
+
+    private String resolveCorrectPriority(AIPrediction record) {
+        return record.getCorrectedPriority() != null
+                ? record.getCorrectedPriority()
+                : record.getPredictedPriority();
+    }
+
+    private String valueOrEmpty(String value) {
+        return value != null ? value : "";
     }
 }

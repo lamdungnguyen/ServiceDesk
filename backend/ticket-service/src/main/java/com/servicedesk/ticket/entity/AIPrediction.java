@@ -62,6 +62,15 @@ public class AIPrediction {
     @Column(name = "predicted_sentiment", length = 20)
     private String predictedSentiment;
 
+    @Column(name = "predicted_impact", length = 40)
+    private String predictedImpact;
+
+    @Column(name = "impact_reason", length = 500)
+    private String impactReason;
+
+    @Column(name = "urgency_signals", length = 1000)
+    private String urgencySignals;
+
     // ── Agent Corrections (NULL nếu chưa verify) ─────────────────────────────
 
     @Column(name = "corrected_category", length = 50)
@@ -86,6 +95,17 @@ public class AIPrediction {
     @Column(name = "confidence_score")
     @Builder.Default
     private Double confidenceScore = 0.0;
+
+    @Column(name = "model_version", length = 100)
+    private String modelVersion;
+
+    @Column(name = "decision_status", length = 30)
+    @Builder.Default
+    private String decisionStatus = "FALLBACK";
+
+    @Column(name = "ai_applied", nullable = false)
+    @Builder.Default
+    private Boolean aiApplied = false;
 
     /**
      * true  → Agent đã verify VÀ AI sai (predicted != corrected)

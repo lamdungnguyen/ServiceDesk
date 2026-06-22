@@ -44,6 +44,12 @@ export interface UserPayload {
   status: 'ACTIVE' | 'PENDING' | 'INACTIVE';
 }
 
+export interface UserPresencePayload {
+  userId: number;
+  activityStatus: 'ONLINE' | 'OFFLINE';
+  lastSeenAt?: string | null;
+}
+
 export interface AuthResponse {
   token: string | null;
   user: UserPayload;
@@ -73,8 +79,31 @@ export const getAllUsers = async (role?: string): Promise<UserPayload[]> => {
   return response.data;
 };
 
+export const getUserPresence = async (): Promise<UserPresencePayload[]> => {
+  const response = await apiClient.get('/users/presence');
+  return response.data;
+};
+
 export const updateUserStatus = async (userId: number, status: string): Promise<UserPayload> => {
   const response = await apiClient.patch(`/users/${userId}/status`, { status });
+  return response.data;
+};
+
+export const updateUserRole = async (userId: number, role: string, agentType?: string): Promise<UserPayload> => {
+  const response = await apiClient.patch(`/users/${userId}/role`, { role, agentType });
+  return response.data;
+};
+
+export const adminCreateUser = async (data: {
+  username: string;
+  password: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  role: string;
+  agentType?: string;
+}): Promise<UserPayload> => {
+  const response = await apiClient.post('/users', data);
   return response.data;
 };
 

@@ -3,7 +3,7 @@ import {
   Brain, TrendingUp, CheckCircle2, XCircle, Download,
   RefreshCw, AlertCircle, Zap, Database, BarChart3, Tag, Flag,
 } from 'lucide-react';
-import { getAIAccuracyStats, exportAITrainingCSV, type AIAccuracyStats } from '../../api/apiClient';
+import { getAIAccuracyStats, exportAITrainingCSV, exportAITrainingJSONL, type AIAccuracyStats } from '../../api/apiClient';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -26,11 +26,13 @@ const PRIORITY_COLOR: Record<string, string> = {
 const SOURCE_COLOR: Record<string, string> = {
   RULE_BASED: 'bg-violet-500',
   ZERO_SHOT:  'bg-sky-500',
+  FALLBACK:   'bg-slate-400',
 };
 
 const SOURCE_LABEL: Record<string, string> = {
   RULE_BASED: 'Rule-Based Keywords',
   ZERO_SHOT:  'Zero-Shot ML Model',
+  FALLBACK:   'Service Fallback',
 };
 
 function accuracyColor(pct: number) {
@@ -86,7 +88,7 @@ function AccuracySection({
     return (
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
         <SectionTitle icon={icon} title={title} subtitle={subtitle} />
-        <p className="text-sm text-slate-400 text-center py-6">Chưa có dữ liệu đã được xác thực</p>
+        <p className="text-sm text-slate-400 text-center py-6">No verified data</p>
       </div>
     );
   }
@@ -135,7 +137,7 @@ const AIAccuracy = () => {
       const data = await getAIAccuracyStats();
       setStats(data);
     } catch {
-      setError('Không thể tải dữ liệu AI Accuracy. Hãy đảm bảo AI Service và Spring Boot đang chạy.');
+      setError('Cannot load AI Accuracy data. Ensure AI Service and Spring Boot are running.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -152,12 +154,20 @@ const AIAccuracy = () => {
     a.click();
   };
 
+  const handleExportJSONL = () => {
+    const url = exportAITrainingJSONL();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ai_training_data.jsonl';
+    a.click();
+  };
+
   // ── Loading ──
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-80 gap-4">
         <div className="w-12 h-12 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin" />
-        <p className="text-slate-500 text-sm">Đang tải AI Analytics...</p>
+        <p className="text-slate-500 text-sm">Loading AI Analytics...</p>
       </div>
     );
   }
@@ -170,14 +180,14 @@ const AIAccuracy = () => {
           <AlertCircle size={28} />
         </div>
         <div>
-          <p className="font-bold text-slate-700 dark:text-slate-200 mb-1">Lỗi tải dữ liệu</p>
+          <p className="font-bold text-slate-700 dark:text-slate-200 mb-1">Error loading data</p>
           <p className="text-sm text-slate-400 max-w-md">{error}</p>
         </div>
         <button
           onClick={() => void fetchStats()}
           className="flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold text-sm transition-colors"
         >
-          <RefreshCw size={15} /> Thử lại
+          <RefreshCw size={15} /> Retry
         </button>
       </div>
     );
@@ -198,7 +208,7 @@ const AIAccuracy = () => {
           <div>
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">AI Accuracy Analytics</h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Dựa trên {stats.totalVerified} tickets đã được Agent xác thực
+              Based on {stats.totalVerified} tickets verified by Agent
             </p>
           </div>
         </div>
@@ -209,7 +219,7 @@ const AIAccuracy = () => {
             className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-semibold transition-colors"
           >
             <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-            Làm mới
+            Refresh
           </button>
           <button
             onClick={handleExportCSV}
@@ -217,6 +227,13 @@ const AIAccuracy = () => {
           >
             <Download size={14} />
             Export CSV
+          </button>
+          <button
+            onClick={handleExportJSONL}
+            className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+          >
+            <Download size={14} />
+            Export JSONL
           </button>
         </div>
       </div>
@@ -226,10 +243,10 @@ const AIAccuracy = () => {
         <div className="flex items-start gap-4 p-5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl">
           <AlertCircle size={20} className="text-amber-500 shrink-0 mt-0.5" />
           <div>
-            <p className="font-semibold text-amber-700 dark:text-amber-300 text-sm">Chưa có dữ liệu được xác thực</p>
+            <p className="font-semibold text-amber-700 dark:text-amber-300 text-sm">No verified data</p>
             <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-              Hệ thống sẽ tính toán accuracy sau khi Agent xem xét và xác nhận/sửa đổi dự đoán AI của ít nhất 1 ticket.
-              Sử dụng API <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">POST /api/v1/ai-feedback</code> để ghi nhận feedback.
+              System will calculate accuracy after an Agent reviews and confirms/corrects AI prediction of at least 1 ticket.
+              Use API <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">POST /api/v1/ai-feedback</code> to record feedback.
             </p>
           </div>
         </div>
@@ -254,15 +271,15 @@ const AIAccuracy = () => {
           },
           {
             icon: <CheckCircle2 size={20} />,
-            label: 'Tổng Đúng',
+            label: 'Total Correct',
             value: `${stats.totalCorrect}`,
-            sub: `/ ${stats.totalVerified} đã xác thực`,
+            sub: `/ ${stats.totalVerified} verified`,
             color: 'from-emerald-500 to-green-600',
             shadow: 'shadow-emerald-500/20',
           },
           {
             icon: <XCircle size={20} />,
-            label: 'Agent đã Sửa',
+            label: 'Corrected by Agent',
             value: `${stats.totalCorrected}`,
             sub: stats.totalVerified > 0
               ? `${((stats.totalCorrected / stats.totalVerified) * 100).toFixed(1)}% error rate`
@@ -291,7 +308,7 @@ const AIAccuracy = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <AccuracySection
           title="Category Accuracy"
-          subtitle="Độ chính xác phân loại theo từng danh mục"
+          subtitle="Classification accuracy by category"
           icon={<Tag size={18} />}
           accuracyMap={stats.categoryAccuracy}
           countMap={stats.categoryVerifiedCount}
@@ -299,7 +316,7 @@ const AIAccuracy = () => {
         />
         <AccuracySection
           title="Priority Accuracy"
-          subtitle="Độ chính xác dự đoán mức độ ưu tiên"
+          subtitle="Priority prediction accuracy"
           icon={<Flag size={18} />}
           accuracyMap={stats.priorityAccuracy}
           countMap={stats.priorityVerifiedCount}
@@ -309,8 +326,8 @@ const AIAccuracy = () => {
 
       {/* ── Source Accuracy ── */}
       <AccuracySection
-        title="Accuracy theo Nguồn Dự đoán"
-        subtitle="So sánh Rule-based Keywords với mô hình Zero-shot ML"
+        title="Accuracy by Prediction Source"
+        subtitle="Compare Rule-based Keywords with Zero-shot ML model"
         icon={<Zap size={18} />}
         accuracyMap={stats.sourceAccuracy}
         countMap={stats.sourceVerifiedCount}
@@ -328,27 +345,36 @@ const AIAccuracy = () => {
           <div>
             <h4 className="font-bold text-white text-base">Export Training Data</h4>
             <p className="text-violet-100 text-xs mt-0.5 max-w-md">
-              Tải xuống tập dữ liệu đã được Agent gắn nhãn để fine-tune PhoBERT / XLM-RoBERTa.
-              Chỉ xuất các records đã được xác thực.
+              Download dataset labeled by Agent to fine-tune PhoBERT / XLM-RoBERTa.
+              Only exports verified records.
             </p>
           </div>
         </div>
-        <button
-          onClick={handleExportCSV}
-          className="relative flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-violet-700 rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-lg whitespace-nowrap"
-        >
-          <Download size={15} />
-          Download CSV
-        </button>
+        <div className="relative flex items-center gap-2">
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-violet-700 rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-lg whitespace-nowrap"
+          >
+            <Download size={15} />
+            Download CSV
+          </button>
+          <button
+            onClick={handleExportJSONL}
+            className="flex items-center gap-2 px-5 py-2.5 bg-slate-950/80 hover:bg-slate-950 text-white rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-lg whitespace-nowrap"
+          >
+            <Download size={15} />
+            Download JSONL
+          </button>
+        </div>
       </div>
 
       {/* ── Methodology note ── */}
       <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl">
         <TrendingUp size={16} className="text-slate-400 shrink-0 mt-0.5" />
         <p className="text-xs text-slate-400 leading-relaxed">
-          <strong className="text-slate-600 dark:text-slate-300">Phương pháp tính:</strong> Accuracy chỉ được tính trên các Ticket mà Agent đã thực sự xem xét và gửi feedback (verified records).
-          Các Ticket AI dự đoán nhưng chưa được Agent xem xét sẽ không được tính vào chỉ số này để tránh bias.
-          Mỗi lần Agent xác nhận giữ nguyên = AI đúng. Mỗi lần Agent sửa = AI sai.
+          <strong className="text-slate-600 dark:text-slate-300">Calculation Method:</strong> Accuracy is only calculated on Tickets that the Agent has actually reviewed and submitted feedback for (verified records).
+          Tickets predicted by AI but not yet reviewed by Agent are excluded to prevent bias.
+          Category and priority accuracy are calculated independently, so partial corrections are counted correctly.
         </p>
       </div>
     </div>

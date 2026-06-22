@@ -11,10 +11,10 @@ import { connectWebSocket, subscribeToSupportRequests, subscribeToSupportTaken }
 
 // Support topic display config
 const TOPIC_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-  TECHNICAL: { label: 'Lỗi kỹ thuật', icon: '🔧', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  BILLING: { label: 'Thanh toán', icon: '💳', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  ACCOUNT: { label: 'Tài khoản', icon: '👤', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-  GENERAL: { label: 'Chung', icon: '❓', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  TECHNICAL: { label: 'Technical Issue', icon: '🔧', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  BILLING: { label: 'Billing', icon: '💳', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  ACCOUNT: { label: 'Account', icon: '👤', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  GENERAL: { label: 'General', icon: '❓', color: 'bg-amber-100 text-amber-700 border-amber-200' },
 };
 
 interface SupportRequestsPanelProps {
@@ -114,11 +114,11 @@ const SupportRequestsPanel = ({ onSelectRequest }: SupportRequestsPanelProps) =>
   const formatWaitTime = (createdAt: string) => {
     const diff = Date.now() - new Date(createdAt).getTime();
     const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'Vừa xong';
-    if (minutes < 60) return `${minutes} phút`;
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m`;
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} giờ`;
-    return `${Math.floor(hours / 24)} ngày`;
+    if (hours < 24) return `${hours}h`;
+    return `${Math.floor(hours / 24)}d`;
   };
 
   return (
@@ -127,10 +127,10 @@ const SupportRequestsPanel = ({ onSelectRequest }: SupportRequestsPanelProps) =>
       <div className="px-6 py-4 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
         <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
           <Headset size={20} className="text-primary-500" />
-          Yêu cầu hỗ trợ
+          Support Requests
         </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Tiếp nhận và xử lý các yêu cầu hỗ trợ từ khách hàng
+          Receive and process support requests from customers
         </p>
       </div>
 
@@ -145,7 +145,7 @@ const SupportRequestsPanel = ({ onSelectRequest }: SupportRequestsPanelProps) =>
           }`}
         >
           <Clock size={16} />
-          Đang chờ
+          Waiting
           {waitingRequests.length > 0 && (
             <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full">
               {waitingRequests.length}
@@ -161,7 +161,7 @@ const SupportRequestsPanel = ({ onSelectRequest }: SupportRequestsPanelProps) =>
           }`}
         >
           <MessageSquare size={16} />
-          Đang xử lý
+          In Progress
           {myChats.length > 0 && (
             <span className="px-2 py-0.5 bg-emerald-500 text-white text-xs font-bold rounded-full">
               {myChats.length}
@@ -182,8 +182,8 @@ const SupportRequestsPanel = ({ onSelectRequest }: SupportRequestsPanelProps) =>
               <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle size={28} className="text-slate-400" />
               </div>
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Không có yêu cầu chờ</p>
-              <p className="text-xs text-slate-400">Tất cả yêu cầu hỗ trợ đã được tiếp nhận.</p>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">No waiting requests</p>
+              <p className="text-xs text-slate-400">All support requests have been accepted.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -236,12 +236,12 @@ const SupportRequestsPanel = ({ onSelectRequest }: SupportRequestsPanelProps) =>
                         {acceptingId === request.id ? (
                           <>
                             <Loader2 size={14} className="animate-spin" />
-                            Đang tiếp nhận...
+                            Accepting...
                           </>
                         ) : (
                           <>
                             <UserPlus size={14} />
-                            Tiếp nhận hỗ trợ
+                            Accept Support
                           </>
                         )}
                       </button>
@@ -256,8 +256,8 @@ const SupportRequestsPanel = ({ onSelectRequest }: SupportRequestsPanelProps) =>
             <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4">
               <AlertCircle size={28} className="text-slate-400" />
             </div>
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Chưa có chat nào</p>
-            <p className="text-xs text-slate-400">Tiếp nhận yêu cầu từ tab "Đang chờ" để bắt đầu hỗ trợ.</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">No active chats</p>
+            <p className="text-xs text-slate-400">Accept a request from the "Waiting" tab to start support.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -291,7 +291,7 @@ const SupportRequestsPanel = ({ onSelectRequest }: SupportRequestsPanelProps) =>
                       </div>
                       <div className="flex items-center gap-1 text-xs text-emerald-600 mt-0.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Đang hoạt động
+                        Active
                       </div>
                     </div>
                     <MessageSquare size={18} className="text-slate-400" />

@@ -21,6 +21,9 @@ CREATE TABLE ai_predictions (
     predicted_category  NVARCHAR(50)    NULL,
     predicted_priority  NVARCHAR(20)    NULL,
     predicted_sentiment NVARCHAR(20)    NULL,
+    predicted_impact    NVARCHAR(40)    NULL,
+    impact_reason       NVARCHAR(500)   NULL,
+    urgency_signals     NVARCHAR(1000)  NULL,
 
     -- Agent Corrections (NULL nếu chưa được verify)
     corrected_category  NVARCHAR(50)    NULL,
@@ -30,10 +33,14 @@ CREATE TABLE ai_predictions (
     prediction_source   NVARCHAR(20)    NOT NULL DEFAULT 'ZERO_SHOT',
         -- RULE_BASED: rule-based fast path matched
         -- ZERO_SHOT:  ML zero-shot classification
+        -- FALLBACK:   AI service unavailable or model error
 
     confidence_score    FLOAT           NULL DEFAULT 0.0,
+    model_version       NVARCHAR(100)   NULL,
+    decision_status     NVARCHAR(30)    NULL DEFAULT 'FALLBACK',
+    ai_applied          BIT             NOT NULL DEFAULT 0,
         -- 1.0 nếu RULE_BASED
-        -- Model score nếu ZERO_SHOT
+        -- Model score nếu ZERO_SHOT, 0.0 nếu FALLBACK
 
     agent_corrected     BIT             NOT NULL DEFAULT 0,
         -- 0: Chưa verify hoặc đã verify nhưng AI đúng
@@ -52,8 +59,8 @@ CREATE TABLE ai_predictions (
         REFERENCES tickets(id)
         ON DELETE CASCADE,
     CONSTRAINT chk_prediction_source CHECK (
-        prediction_source IN ('RULE_BASED', 'ZERO_SHOT')
-    ),
+        prediction_source IN ('RULE_BASED', 'ZERO_SHOT', 'FALLBACK')
+    )
 );
 
 -- Index để query nhanh theo ticket
@@ -67,7 +74,7 @@ CREATE INDEX idx_ai_pred_agent_corrected
 -- Index để export training data
 CREATE INDEX idx_ai_pred_export
     ON ai_predictions (agent_corrected, created_at)
-    INCLUDE (ticket_text, corrected_category, corrected_priority, prediction_source, confidence_score);
+    INCLUDE (ticket_text, corrected_category, corrected_priority, prediction_source, confidence_score, model_version);
 
 -- ============================================================
 -- NOTE: Nếu dùng Hibernate ddl-auto=update thì không cần

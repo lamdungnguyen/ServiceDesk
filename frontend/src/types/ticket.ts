@@ -43,3 +43,34 @@ export interface CustomFieldConfig {
   options: string;
   isRequired: boolean;
 }
+
+export interface SimilarTicket {
+  id: number;
+  title: string;
+  category: string | null;
+  priority: string;
+  status: string;
+  score: number;
+  matchedTerms: string[];
+  createdAt: string;
+}
+
+export interface TicketAiSummary {
+  summary: string;
+  customerProblem: string;
+  attemptedSteps: string[];
+  suggestedNextSteps: string[];
+  suggestedReply: string;
+  source: string;
+}
+
+export interface RoutingSuggestion {
+  assigneeId: number;
+  assigneeName: string;
+  role: string;
+  agentType: string | null;
+  score: number;
+  matchingResolvedTickets: number;
+  openTicketCount: number;
+  reason: string;
+}

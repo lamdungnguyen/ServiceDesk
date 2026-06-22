@@ -88,7 +88,7 @@ const MessagesTab = ({ selfId, selfName, selfRole, initialConvId }: MessagesTabP
   );
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full w-full overflow-hidden bg-white dark:bg-slate-950 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
       <ConversationList
         conversations={conversations}
         selectedId={selectedConvId}
@@ -101,7 +101,7 @@ const MessagesTab = ({ selfId, selfName, selfRole, initialConvId }: MessagesTabP
         onCreateGroup={handleCreateGroup}
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden border-l border-slate-200 dark:border-slate-800">
+      <div className="flex-1 flex flex-col overflow-hidden border-l border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20 relative">
         {selectedConv ? (
           <ConversationView
             conversation={selectedConv}
@@ -113,13 +113,16 @@ const MessagesTab = ({ selfId, selfName, selfRole, initialConvId }: MessagesTabP
             onConversationUpdated={fetchConversations}
           />
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-3">
-            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-              <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 gap-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-900">
+            <div className="w-24 h-24 rounded-full bg-white dark:bg-slate-800 shadow-xl shadow-blue-500/10 flex items-center justify-center ring-8 ring-slate-100 dark:ring-slate-800/50">
+              <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="text-blue-500">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
               </svg>
             </div>
-            <p className="text-sm font-medium">Chọn một cuộc trò chuyện</p>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Your Messages</h3>
+              <p className="text-sm mt-1 max-w-[250px] leading-relaxed">Select an existing conversation from the list or start a new one to connect with your team.</p>
+            </div>
           </div>
         )}
       </div>

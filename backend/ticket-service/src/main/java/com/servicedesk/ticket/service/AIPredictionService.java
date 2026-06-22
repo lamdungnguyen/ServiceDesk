@@ -25,6 +25,15 @@ public interface AIPredictionService {
      */
     void saveInitialPrediction(Long ticketId, String title, String description, AIResponse aiResponse);
 
+    void saveInitialPrediction(
+            Long ticketId,
+            String title,
+            String description,
+            AIResponse aiResponse,
+            String decisionStatus,
+            boolean aiApplied
+    );
+
     /**
      * Ghi nhận correction của Agent.
      * Tạo record mới — KHÔNG overwrite prediction cũ.

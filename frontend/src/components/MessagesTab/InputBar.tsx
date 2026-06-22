@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
-import { Send, Paperclip, Image, Mic, MicOff, ChevronDown } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Send, Paperclip, Image, Mic, MicOff, ChevronDown, Plus, X } from 'lucide-react';
 import { uploadMessageFile, getTickets, assignTicket, type UserPayload } from '../../api/apiClient';
 import type { Ticket } from '../../types/ticket';
-import { sendDmMessage } from '../../services/websocket';
+import { sendDmMessage, sendDmTyping } from '../../services/websocket';
 
 interface Props {
   conversationId: number;
@@ -19,6 +19,7 @@ const InputBar = ({ conversationId, selfId, selfName, isAdmin, onMessageSent }: 
   const [sending, setSending] = useState(false);
   const [recording, setRecording] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [agents, setAgents] = useState<UserPayload[]>([]);
   const [loadingAssign, setLoadingAssign] = useState(false);
@@ -27,9 +28,39 @@ const InputBar = ({ conversationId, selfId, selfName, isAdmin, onMessageSent }: 
   const imgInputRef = useRef<HTMLInputElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attachMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close attach menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target as Node)) {
+        setShowAttachMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setText(e.target.value);
+    
+    // Emit typing status
+    sendDmTyping(conversationId, selfId, selfName, true);
+    
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      sendDmTyping(conversationId, selfId, selfName, false);
+    }, 1500);
+  };
 
   const sendText = () => {
     if (!text.trim()) return;
+    
+    // Clear typing immediately
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    sendDmTyping(conversationId, selfId, selfName, false);
+
     sendDmMessage({
       conversationId,
       senderId: selfId,
@@ -49,6 +80,7 @@ const InputBar = ({ conversationId, selfId, selfName, isAdmin, onMessageSent }: 
   };
 
   const handleFile = async (file: File, type: 'FILE' | 'IMAGE') => {
+    setShowAttachMenu(false);
     setSending(true);
     try {
       const { fileUrl, fileName } = await uploadMessageFile(file);
@@ -70,6 +102,7 @@ const InputBar = ({ conversationId, selfId, selfName, isAdmin, onMessageSent }: 
   };
 
   const startRecording = async () => {
+    setShowAttachMenu(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -112,6 +145,7 @@ const InputBar = ({ conversationId, selfId, selfName, isAdmin, onMessageSent }: 
   };
 
   const handleAssignOpen = async () => {
+    setShowAttachMenu(false);
     if (showAssign) { setShowAssign(false); return; }
     setLoadingAssign(true);
     try {
@@ -137,7 +171,7 @@ const InputBar = ({ conversationId, selfId, selfName, isAdmin, onMessageSent }: 
         conversationId,
         senderId: selfId,
         senderName: selfName,
-        content: `✅ Ticket #${ticketId} đã được assign cho agent ID ${agentId}`,
+        content: `✅ Ticket #${ticketId} assigned to agent ID ${agentId}`,
         messageType: 'TEXT',
       });
       onMessageSent();
@@ -148,24 +182,27 @@ const InputBar = ({ conversationId, selfId, selfName, isAdmin, onMessageSent }: 
   };
 
   return (
-    <div className="bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800">
+    <div className="bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 z-10 relative shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
       {/* Assign panel */}
       {showAssign && (
-        <div className="px-3 py-2 bg-amber-50 dark:bg-amber-900/10 border-b border-amber-100 dark:border-amber-800">
-          <p className="text-[10px] font-bold text-amber-600 uppercase mb-1.5">Assign ticket cho agent</p>
+        <div className="absolute bottom-[100%] left-0 right-0 px-4 py-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-xl z-20">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Assign ticket</p>
+            <button onClick={() => setShowAssign(false)}><X size={16} className="text-slate-400 hover:text-slate-600" /></button>
+          </div>
           {loadingAssign ? (
-            <div className="text-xs text-slate-400">Đang tải...</div>
+            <div className="text-sm text-slate-400 py-2">Loading active tickets...</div>
           ) : (
-            <div className="max-h-40 overflow-y-auto space-y-1">
+            <div className="max-h-48 overflow-y-auto space-y-2 scrollbar-thin">
               {tickets.map(t => (
-                <div key={t.id} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="text-slate-700 dark:text-slate-300 truncate flex-1">#{t.id} {t.title}</span>
+                <div key={t.id} className="flex items-center justify-between gap-3 p-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate flex-1">#{t.id} - {t.title}</span>
                   <select
                     defaultValue=""
                     onChange={e => e.target.value && handleAssign(t.id, Number(e.target.value))}
-                    className="text-xs border border-amber-200 dark:border-amber-700 rounded px-1 py-0.5 bg-white dark:bg-slate-800"
+                    className="text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Chọn agent</option>
+                    <option value="">Select agent...</option>
                     {agents.map(a => (
                       <option key={a.id} value={a.id}>{a.name}</option>
                     ))}
@@ -178,75 +215,72 @@ const InputBar = ({ conversationId, selfId, selfName, isAdmin, onMessageSent }: 
       )}
 
       {/* Input row */}
-      <div className="flex items-end gap-1.5 px-3 py-2.5">
-        {/* File */}
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={sending}
-          title="Đính kèm file"
-          className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors flex-shrink-0"
-        >
-          <Paperclip size={16} />
-        </button>
-        <input ref={fileInputRef} type="file" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0], 'FILE')} />
-
-        {/* Image */}
-        <button
-          onClick={() => imgInputRef.current?.click()}
-          disabled={sending}
-          title="Gửi ảnh"
-          className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors flex-shrink-0"
-        >
-          <Image size={16} />
-        </button>
-        <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0], 'IMAGE')} />
-
-        {/* Voice */}
-        <button
-          onClick={recording ? stopRecording : startRecording}
-          disabled={sending}
-          title={recording ? 'Dừng ghi' : 'Ghi âm'}
-          className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
-            recording
-              ? 'bg-red-500 text-white animate-pulse'
-              : 'text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
-          }`}
-        >
-          {recording ? <MicOff size={16} /> : <Mic size={16} />}
-        </button>
-
-        {/* Assign (admin only) */}
-        {isAdmin && (
+      <div className="flex items-end gap-2 px-4 py-3">
+        {/* Plus Menu Container */}
+        <div className="relative" ref={attachMenuRef}>
           <button
-            onClick={handleAssignOpen}
-            title="Assign ticket"
-            className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
-              showAssign ? 'bg-amber-100 text-amber-600' : 'text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'
-            }`}
+            onClick={() => setShowAttachMenu(!showAttachMenu)}
+            disabled={sending}
+            className={`p-2.5 rounded-full transition-all flex-shrink-0 mb-0.5 ${showAttachMenu ? 'bg-blue-500 text-white shadow-md rotate-45' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'}`}
           >
-            <ChevronDown size={16} />
+            <Plus size={20} />
           </button>
-        )}
+          
+          {/* Attach Menu */}
+          {showAttachMenu && (
+             <div className="absolute bottom-[120%] left-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-2 flex flex-col gap-1 min-w-[160px] animate-in slide-in-from-bottom-2 fade-in">
+               <input ref={fileInputRef} type="file" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0], 'FILE')} />
+               <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0], 'IMAGE')} />
+               
+               <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-500 flex items-center justify-center"><Paperclip size={16} /></div> File
+               </button>
+               <button onClick={() => imgInputRef.current?.click()} className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-500 flex items-center justify-center"><Image size={16} /></div> Image
+               </button>
+               <button onClick={recording ? stopRecording : startRecording} className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${recording ? 'bg-red-500 text-white animate-pulse' : 'bg-rose-100 dark:bg-rose-900/50 text-rose-500'}`}>
+                    {recording ? <MicOff size={16} /> : <Mic size={16} />}
+                  </div> 
+                  {recording ? 'Stop Recording' : 'Voice'}
+               </button>
+               {isAdmin && (
+                  <button onClick={handleAssignOpen} className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                     <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-500 flex items-center justify-center"><ChevronDown size={16} /></div> Assign
+                  </button>
+               )}
+             </div>
+          )}
+        </div>
 
-        {/* Text input */}
-        <textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Nhập tin nhắn... (Enter để gửi)"
-          rows={1}
-          className="flex-1 resize-none text-sm px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-400 text-slate-700 dark:text-slate-200 placeholder-slate-400 max-h-32"
-          style={{ overflowY: text.split('\n').length > 3 ? 'auto' : 'hidden' }}
-        />
+        {/* Text input Container */}
+        <div className="flex-1 bg-slate-100 dark:bg-slate-900 rounded-3xl flex items-center pr-2 py-1 pl-4 border border-transparent focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+          <textarea
+            value={text}
+            onChange={handleTextChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Message..."
+            rows={1}
+            className="flex-1 resize-none text-sm bg-transparent border-none focus:outline-none focus:ring-0 text-slate-700 dark:text-slate-200 placeholder-slate-400 max-h-32 py-2.5 mr-2 scrollbar-thin"
+            style={{ overflowY: text.split('\n').length > 3 ? 'auto' : 'hidden' }}
+          />
 
-        {/* Send */}
-        <button
-          onClick={sendText}
-          disabled={!text.trim() || sending}
-          className="p-2 bg-blue-500 hover:bg-blue-600 disabled:bg-slate-300 disabled:dark:bg-slate-700 text-white rounded-xl transition-colors flex-shrink-0"
-        >
-          <Send size={16} />
-        </button>
+          {/* Send */}
+          {text.trim() ? (
+            <button
+              onClick={sendText}
+              disabled={sending}
+              className="w-9 h-9 rounded-full bg-blue-500 hover:bg-blue-600 disabled:bg-slate-300 disabled:dark:bg-slate-700 text-white flex items-center justify-center transition-all shadow-md shadow-blue-500/20 transform hover:scale-105 active:scale-95 flex-shrink-0"
+            >
+              <Send size={16} className="ml-0.5" />
+            </button>
+          ) : (
+            <div className="flex items-center gap-1 opacity-70">
+              <button onClick={() => imgInputRef.current?.click()} className="p-2 text-slate-500 hover:text-blue-500 rounded-full transition-colors"><Image size={18} /></button>
+              <button onClick={recording ? stopRecording : startRecording} className={`p-2 rounded-full transition-colors ${recording ? 'text-red-500 animate-pulse' : 'text-slate-500 hover:text-blue-500'}`}>{recording ? <MicOff size={18} /> : <Mic size={18} />}</button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

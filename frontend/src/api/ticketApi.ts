@@ -1,5 +1,5 @@
 import apiClient from './axiosInstance';
-import type { Ticket, TicketCreateRequest, CustomFieldConfig } from '../types/ticket';
+import type { Ticket, TicketCreateRequest, CustomFieldConfig, SimilarTicket, TicketAiSummary, RoutingSuggestion } from '../types/ticket';
 
 export interface TicketFilterParams {
   status?: string;
@@ -21,6 +21,21 @@ export const getAssignedTickets = async (): Promise<Ticket[]> => {
 
 export const getTicketById = async (id: number): Promise<Ticket> => {
   const response = await apiClient.get(`/tickets/${id}`);
+  return response.data;
+};
+
+export const getSimilarTickets = async (id: number): Promise<SimilarTicket[]> => {
+  const response = await apiClient.get(`/tickets/${id}/similar`);
+  return response.data;
+};
+
+export const getTicketAiSummary = async (id: number): Promise<TicketAiSummary> => {
+  const response = await apiClient.get(`/tickets/${id}/ai-summary`);
+  return response.data;
+};
+
+export const getRoutingSuggestions = async (id: number): Promise<RoutingSuggestion[]> => {
+  const response = await apiClient.get(`/tickets/${id}/routing-suggestions`);
   return response.data;
 };
 

@@ -15,10 +15,10 @@ const PRIORITY_ORDER: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3, URG
 const STATUS_ORDER: Record<string, number> = { NEW: 1, ASSIGNED: 2, IN_PROGRESS: 3, RESOLVED: 4, CLOSED: 5 };
 
 const SORT_LABELS: Record<SortField, string> = {
-  title: 'Tên',
-  priority: 'Mức độ',
-  status: 'Trạng thái',
-  createdAt: 'Ngày tạo',
+  title: 'Title',
+  priority: 'Priority',
+  status: 'Status',
+  createdAt: 'Created At',
 };
 
 const ALL_STATUSES = ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
@@ -77,7 +77,7 @@ const MyTickets = () => {
     }
   }, [fetchTickets, user]);
 
-  // Auto-open ticket từ query param ?ticketId=X (từ notification)
+  // Auto-open ticket from query param ?ticketId=X (from notification)
   useEffect(() => {
     const ticketIdParam = searchParams.get('ticketId');
     if (ticketIdParam && tickets.length > 0) {
@@ -188,7 +188,7 @@ const MyTickets = () => {
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Tìm kiếm ticket..."
+                placeholder="Search tickets..."
                 className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 placeholder:text-slate-400 dark:text-slate-200 shadow-sm transition-all"
               />
               {searchQuery && (
@@ -208,7 +208,7 @@ const MyTickets = () => {
               }`}
             >
               <Filter size={15} />
-              Bộ lọc
+              Filters
               {activeFilterCount > 0 && (
                 <span className="ml-1 w-5 h-5 flex items-center justify-center bg-primary-600 text-white text-[10px] font-bold rounded-full">
                   {activeFilterCount}
@@ -218,7 +218,7 @@ const MyTickets = () => {
 
             {/* Sort pills */}
             <div className="flex items-center gap-1.5 ml-auto">
-              <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 mr-1 hidden sm:inline">Sắp xếp:</span>
+              <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 mr-1 hidden sm:inline">Sort:</span>
               {(Object.keys(SORT_LABELS) as SortField[]).map(field => (
                 <button
                   key={field}
@@ -240,17 +240,17 @@ const MyTickets = () => {
           {showFilters && (
             <div className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">Lọc theo</span>
+                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">Filter by</span>
                 {activeFilterCount > 0 && (
                   <button onClick={clearAllFilters} className="text-xs font-medium text-red-500 hover:text-red-600 transition-colors">
-                    Xóa tất cả
+                    Clear all
                   </button>
                 )}
               </div>
 
               {/* Status filter */}
               <div className="mb-4">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Trạng thái</p>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Status</p>
                 <div className="flex flex-wrap gap-2">
                   {ALL_STATUSES.map(s => {
                     const active = filterStatus.includes(s);
@@ -277,7 +277,7 @@ const MyTickets = () => {
 
               {/* Priority filter */}
               <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Mức độ ưu tiên</p>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Priority</p>
                 <div className="flex flex-wrap gap-2">
                   {ALL_PRIORITIES.map(p => {
                     const active = filterPriority.includes(p);
@@ -307,7 +307,7 @@ const MyTickets = () => {
           {/* Active filter tags */}
           {activeFilterCount > 0 && !showFilters && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-slate-400">Đang lọc:</span>
+              <span className="text-xs text-slate-400">Filtering by:</span>
               {filterStatus.map(s => (
                 <span key={s} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${STATUS_STYLE[s]}`}>
                   {s.replace('_', ' ')}
@@ -326,7 +326,7 @@ const MyTickets = () => {
                   <button onClick={() => setSearchQuery('')} className="ml-0.5 hover:opacity-70"><X size={11} /></button>
                 </span>
               )}
-              <button onClick={clearAllFilters} className="text-[11px] font-medium text-red-500 hover:text-red-600 ml-1">Xóa tất cả</button>
+              <button onClick={clearAllFilters} className="text-[11px] font-medium text-red-500 hover:text-red-600 ml-1">Clear all</button>
             </div>
           )}
 
@@ -374,12 +374,12 @@ const MyTickets = () => {
           <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-4">
             <Filter size={32} />
           </div>
-          <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Không có kết quả</h3>
+          <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">No results</h3>
           <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-4">
-            Không tìm thấy ticket phù hợp với bộ lọc hiện tại.
+            No tickets match the current filters.
           </p>
           <button onClick={clearAllFilters} className="text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors">
-            Xóa bộ lọc
+            Clear filters
           </button>
         </div>
       ) : (

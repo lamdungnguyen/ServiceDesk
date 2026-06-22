@@ -134,6 +134,63 @@ public class MessagingServiceImpl implements MessagingService {
         memberRepository.deleteByConversationIdAndUserId(conversationId, userId);
     }
 
+    @Override
+    @Transactional
+    public DirectMessageDto markAsRead(Long messageId, Long userId) {
+        DirectMessage msg = messageRepository.findById(messageId).orElseThrow();
+        String currentReadIds = msg.getReadByIds() == null ? "" : msg.getReadByIds();
+        String userIdStr = userId.toString();
+        
+        if (currentReadIds.isEmpty()) {
+            msg.setReadByIds(userIdStr);
+        } else {
+            List<String> ids = new ArrayList<>(List.of(currentReadIds.split(",")));
+            if (!ids.contains(userIdStr)) {
+                ids.add(userIdStr);
+                msg.setReadByIds(String.join(",", ids));
+            }
+        }
+        return toMessageDto(messageRepository.save(msg));
+    }
+
+    @Override
+    @Transactional
+    public DirectMessageDto reactToMessage(Long messageId, Long userId, String reaction) {
+        DirectMessage msg = messageRepository.findById(messageId).orElseThrow();
+        // Format of reactions: {"👍":["1","2"], "❤️":["1"]}
+        // We will parse it simply or using Jackson. Since we don't want to add much deps inside the method,
+        // let's do a quick parsing using Jackson ObjectMapper.
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String currentReactionsStr = msg.getReactions() == null || msg.getReactions().isBlank() ? "{}" : msg.getReactions();
+            
+            // Map<Reaction(String), List<UserId(String)>>
+            java.util.Map<String, List<String>> reactionsMap = mapper.readValue(
+                currentReactionsStr, 
+                new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, List<String>>>() {}
+            );
+            
+            String userIdStr = userId.toString();
+            List<String> usersWhoReacted = reactionsMap.getOrDefault(reaction, new ArrayList<>());
+            
+            if (usersWhoReacted.contains(userIdStr)) {
+                usersWhoReacted.remove(userIdStr);
+                if (usersWhoReacted.isEmpty()) {
+                    reactionsMap.remove(reaction);
+                }
+            } else {
+                usersWhoReacted.add(userIdStr);
+                reactionsMap.put(reaction, usersWhoReacted);
+            }
+            
+            msg.setReactions(mapper.writeValueAsString(reactionsMap));
+        } catch (Exception e) {
+            // Log error
+        }
+        
+        return toMessageDto(messageRepository.save(msg));
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private List<ConversationDto.MemberInfo> buildMemberInfos(Long conversationId) {
@@ -181,6 +238,8 @@ public class MessagingServiceImpl implements MessagingService {
                 .fileUrl(m.getFileUrl())
                 .fileName(m.getFileName())
                 .createdAt(m.getCreatedAt())
+                .readByIds(m.getReadByIds())
+                .reactions(m.getReactions())
                 .build();
     }
 }

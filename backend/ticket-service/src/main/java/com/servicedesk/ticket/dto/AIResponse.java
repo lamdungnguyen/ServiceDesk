@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -13,6 +15,9 @@ public class AIResponse {
     private String category;
     private String priority;
     private String sentiment;
+    private String impact;
+    private String impactReason;
+    private List<String> urgencySignals;
     private String reason;
 
     /**
@@ -27,4 +32,7 @@ public class AIResponse {
      */
     @Builder.Default
     private Double confidenceScore = 0.0;
+
+    @Builder.Default
+    private String modelVersion = "hybrid-v2.1";
 }

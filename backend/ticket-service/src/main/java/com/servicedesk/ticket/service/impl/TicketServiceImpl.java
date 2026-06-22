@@ -1,17 +1,26 @@
 package com.servicedesk.ticket.service.impl;
 
 import com.servicedesk.ticket.dto.AIResponse;
+import com.servicedesk.ticket.dto.AITicketSummaryComment;
+import com.servicedesk.ticket.dto.AITicketSummaryRequest;
+import com.servicedesk.ticket.dto.RoutingSuggestionResponse;
+import com.servicedesk.ticket.dto.SimilarTicketResponse;
+import com.servicedesk.ticket.dto.SettingsDto;
+import com.servicedesk.ticket.dto.TicketAiSummaryResponse;
 import com.servicedesk.ticket.dto.TicketAuditLogResponse;
 import com.servicedesk.ticket.dto.TicketCreateRequest;
 import com.servicedesk.ticket.dto.TicketResponse;
+import com.servicedesk.ticket.entity.Comment;
 import com.servicedesk.ticket.entity.Ticket;
 import com.servicedesk.ticket.enums.Priority;
 import com.servicedesk.ticket.enums.TicketAuditAction;
 import com.servicedesk.ticket.enums.TicketStatus;
 import com.servicedesk.ticket.enums.UserRole;
+import com.servicedesk.ticket.enums.UserStatus;
 import com.servicedesk.ticket.exception.ResourceNotFoundException;
 import com.servicedesk.ticket.exception.UnauthorizedAccessException;
 import com.servicedesk.ticket.repository.TicketRepository;
+import com.servicedesk.ticket.repository.CommentRepository;
 import com.servicedesk.ticket.security.UserContext;
 import com.servicedesk.ticket.service.AIPredictionService;
 import com.servicedesk.ticket.service.AIService;
@@ -19,6 +28,7 @@ import com.servicedesk.ticket.service.AccessControlService;
 import com.servicedesk.ticket.service.EmailService;
 import com.servicedesk.ticket.service.NotificationService;
 import com.servicedesk.ticket.service.SettingsService;
+import com.servicedesk.ticket.service.TicketSimilarityScorer;
 import com.servicedesk.ticket.service.TicketAuditLogService;
 import com.servicedesk.ticket.service.TicketService;
 import com.servicedesk.ticket.dto.TicketCustomFieldValueDto;
@@ -33,15 +43,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class TicketServiceImpl implements TicketService {
+
+    private static final Set<String> CANONICAL_CATEGORIES = Set.of(
+            "GENERAL", "NETWORK", "INFRASTRUCTURE", "ACCOUNT", "SOFTWARE", "HARDWARE"
+    );
 
     private final TicketRepository ticketRepository;
     private final NotificationService notificationService;
@@ -52,6 +69,8 @@ public class TicketServiceImpl implements TicketService {
     private final TicketAuditLogService ticketAuditLogService;
     private final EmailService emailService;
     private final SettingsService settingsService;
+    private final CommentRepository commentRepository;
+    private final TicketSimilarityScorer ticketSimilarityScorer;
     private final com.servicedesk.ticket.repository.SettingsRepository settingsRepository;
     private final com.servicedesk.ticket.util.BusinessTimeCalculator businessTimeCalculator;
     private final CustomFieldConfigRepository customFieldConfigRepository;
@@ -76,30 +95,13 @@ public class TicketServiceImpl implements TicketService {
                 .status(TicketStatus.NEW)
                 .build();
 
+        SettingsDto settings = settingsService.getSettings();
         AIResponse aiResponse = aiService.analyzeTicket(request.getTitle(), request.getDescription());
+        AIClassificationDecision aiDecision = resolveAIClassificationDecision(aiResponse, request, settings);
 
-        String aiCategory = aiResponse.getCategory();
-        if (aiCategory == null || aiCategory.trim().isEmpty()) {
-            aiCategory = "GENERAL";
-        }
-        
-        if (request.getCategory() != null && !request.getCategory().trim().isEmpty()) {
-            ticket.setCategory(request.getCategory().toUpperCase());
-        } else {
-            ticket.setCategory(aiCategory.toUpperCase());
-        }
+        ticket.setCategory(aiDecision.category);
 
-        Priority finalPriority;
-        try {
-            finalPriority = Priority.valueOf(aiResponse.getPriority().toUpperCase());
-        } catch (Exception e) {
-            finalPriority = Priority.LOW;
-        }
-
-        String combinedText = (request.getTitle() + " " + request.getDescription()).toLowerCase();
-        if (combinedText.contains("server down") || combinedText.contains("urgent")) {
-            finalPriority = Priority.HIGH;
-        }
+        Priority finalPriority = aiDecision.priority;
 
         ticket.setPriority(finalPriority);
         ticket.setDueDate(calculateDueDate(finalPriority));
@@ -124,7 +126,9 @@ public class TicketServiceImpl implements TicketService {
                     savedTicket.getId(),
                     request.getTitle(),
                     request.getDescription(),
-                    aiResponse
+                    aiResponse,
+                    aiDecision.decisionStatus,
+                    aiDecision.aiApplied
             );
         } catch (Exception e) {
             log.warn("[Ticket] Failed to save AI prediction for ticket #{}: {}",
@@ -142,7 +146,7 @@ public class TicketServiceImpl implements TicketService {
                 userId == null ? request.getReporterName() : null
         );
 
-        if (Boolean.TRUE.equals(settingsService.getSettings().getNotifyEmail())) {
+        if (Boolean.TRUE.equals(settings.getNotifyEmail())) {
             if (savedTicket.getReporterEmail() != null) {
                 emailService.sendEmail(savedTicket.getReporterEmail(), "Ticket Created: " + savedTicket.getTitle(), "Your ticket #" + savedTicket.getId() + " has been created.");
             } else if (savedTicket.getReporterId() != null) {
@@ -350,6 +354,131 @@ public class TicketServiceImpl implements TicketService {
         return ticketAuditLogService.getLogsForTicket(id);
     }
 
+    @Override
+    public List<SimilarTicketResponse> getSimilarTickets(Long id) {
+        Ticket source = ticketRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket not found with id: " + id));
+
+        accessControlService.requireCanViewTicket(source);
+
+        Long userId = UserContext.getUserId();
+        UserRole role = UserContext.getUserRole();
+
+        return ticketRepository.findActiveTickets().stream()
+                .filter(candidate -> !Objects.equals(candidate.getId(), source.getId()))
+                .filter(candidate -> canCurrentUserSeeCandidate(candidate, userId, role))
+                .map(candidate -> {
+                    TicketSimilarityScorer.SimilarityScore score = ticketSimilarityScorer.score(source, candidate);
+                    return SimilarTicketResponse.builder()
+                            .id(candidate.getId())
+                            .title(candidate.getTitle())
+                            .category(candidate.getCategory())
+                            .priority(candidate.getPriority())
+                            .status(candidate.getStatus())
+                            .score(Math.round(score.getScore() * 100.0) / 100.0)
+                            .matchedTerms(score.getMatchedTerms())
+                            .createdAt(candidate.getCreatedAt())
+                            .build();
+                })
+                .filter(candidate -> candidate.getScore() > 0.0)
+                .sorted(Comparator.comparing(SimilarTicketResponse::getScore).reversed())
+                .limit(5)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public TicketAiSummaryResponse getAiSummary(Long id) {
+        Ticket ticket = ticketRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket not found with id: " + id));
+
+        accessControlService.requireCanViewTicket(ticket);
+
+        List<AITicketSummaryComment> comments = commentRepository.findByTicketId(ticket.getId()).stream()
+                .map(this::mapSummaryComment)
+                .collect(Collectors.toList());
+
+        AITicketSummaryRequest request = AITicketSummaryRequest.builder()
+                .title(ticket.getTitle())
+                .description(ticket.getDescription())
+                .category(ticket.getCategory())
+                .priority(ticket.getPriority() != null ? ticket.getPriority().name() : null)
+                .comments(comments)
+                .build();
+
+        return aiService.summarizeTicket(request);
+    }
+
+    @Override
+    public List<RoutingSuggestionResponse> getRoutingSuggestions(Long id) {
+        Ticket ticket = ticketRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket not found with id: " + id));
+
+        accessControlService.requireCanViewTicket(ticket);
+
+        return Stream.concat(
+                        userRepository.findByRole(UserRole.AGENT).stream(),
+                        userRepository.findByRole(UserRole.ADMIN).stream()
+                )
+                .filter(agent -> agent.getStatus() == UserStatus.ACTIVE)
+                .map(agent -> buildRoutingSuggestion(ticket, agent))
+                .sorted(Comparator.comparing(RoutingSuggestionResponse::getScore).reversed())
+                .limit(3)
+                .collect(Collectors.toList());
+    }
+
+    private boolean canCurrentUserSeeCandidate(Ticket candidate, Long userId, UserRole role) {
+        return role == UserRole.ADMIN
+                || (role == UserRole.AGENT && Objects.equals(candidate.getAssigneeId(), userId))
+                || (role == UserRole.CUSTOMER && Objects.equals(candidate.getReporterId(), userId));
+    }
+
+    private AITicketSummaryComment mapSummaryComment(Comment comment) {
+        String authorName = userRepository.findById(comment.getUserId())
+                .map(com.servicedesk.ticket.entity.User::getName)
+                .orElse("User #" + comment.getUserId());
+
+        return AITicketSummaryComment.builder()
+                .userId(comment.getUserId())
+                .authorName(authorName)
+                .content(comment.getContent())
+                .createdAt(comment.getCreatedAt())
+                .build();
+    }
+
+    private RoutingSuggestionResponse buildRoutingSuggestion(
+            Ticket ticket,
+            com.servicedesk.ticket.entity.User agent
+    ) {
+        long matchingResolved = ticket.getCategory() == null
+                ? 0
+                : ticketRepository.countResolvedByAssigneeAndCategory(agent.getId(), ticket.getCategory());
+        long openTicketCount = ticketRepository.countByAssigneeIdAndStatusNotIn(
+                agent.getId(),
+                List.of(TicketStatus.RESOLVED, TicketStatus.CLOSED)
+        );
+
+        double expertiseScore = Math.min(0.45, matchingResolved * 0.09);
+        double availabilityScore = Math.max(0.0, 0.35 - (openTicketCount * 0.04));
+        double roleScore = agent.getRole() == UserRole.AGENT ? 0.15 : 0.08;
+        double priorityBoost = ticket.getPriority() == Priority.URGENT ? 0.05 : 0.0;
+        double score = Math.min(1.0, expertiseScore + availabilityScore + roleScore + priorityBoost);
+
+        String reason = matchingResolved > 0
+                ? "Handled " + matchingResolved + " resolved " + ticket.getCategory() + " tickets; " + openTicketCount + " open tickets now."
+                : "Low current workload with " + openTicketCount + " open tickets; no same-category history yet.";
+
+        return RoutingSuggestionResponse.builder()
+                .assigneeId(agent.getId())
+                .assigneeName(agent.getName())
+                .role(agent.getRole().name())
+                .agentType(agent.getAgentType())
+                .score(Math.round(score * 100.0) / 100.0)
+                .matchingResolvedTickets(matchingResolved)
+                .openTicketCount(openTicketCount)
+                .reason(reason)
+                .build();
+    }
+
     private TicketResponse mapToResponse(Ticket ticket) {
         List<TicketCustomFieldValueDto> customFieldDtos = ticketCustomFieldValueRepository.findByTicketId(ticket.getId())
                 .stream()
@@ -423,5 +552,88 @@ public class TicketServiceImpl implements TicketService {
 
     private String valueOf(Object value) {
         return value == null ? null : value.toString();
+    }
+
+    private AIClassificationDecision resolveAIClassificationDecision(
+            AIResponse aiResponse,
+            TicketCreateRequest request,
+            SettingsDto settings
+    ) {
+        String aiCategory = normalizeCategory(aiResponse.getCategory());
+        boolean aiFallback = "FALLBACK".equalsIgnoreCase(aiResponse.getPredictionSource())
+                || (aiResponse.getConfidenceScore() != null && aiResponse.getConfidenceScore() == 0.0);
+        double confidence = aiResponse.getConfidenceScore() != null ? aiResponse.getConfidenceScore() : 0.0;
+        boolean autoApplyEnabled = settings.getAiAutoApplyEnabled() == null || settings.getAiAutoApplyEnabled();
+        double autoThreshold = settings.getAiAutoApplyThreshold() != null ? settings.getAiAutoApplyThreshold() : 0.8;
+        double suggestThreshold = settings.getAiSuggestThreshold() != null ? settings.getAiSuggestThreshold() : 0.5;
+
+        if (aiCategory != null && !aiFallback && autoApplyEnabled && confidence >= autoThreshold) {
+            return new AIClassificationDecision(
+                    aiCategory,
+                    resolvePriority(aiResponse.getPriority(), request.getPriority()),
+                    "AUTO_APPLIED",
+                    true
+            );
+        }
+
+        String userCategory = normalizeCategory(request.getCategory());
+        Priority fallbackPriority = request.getPriority() != null ? request.getPriority() : Priority.LOW;
+
+        if (aiCategory != null && !aiFallback && confidence >= suggestThreshold) {
+            return new AIClassificationDecision(
+                    userCategory != null ? userCategory : "GENERAL",
+                    fallbackPriority,
+                    "SUGGESTED",
+                    false
+            );
+        }
+
+        return new AIClassificationDecision(
+                userCategory != null ? userCategory : "GENERAL",
+                fallbackPriority,
+                "FALLBACK",
+                false
+        );
+    }
+
+    private String normalizeCategory(String category) {
+        if (category == null || category.trim().isEmpty()) {
+            return null;
+        }
+
+        String normalized = category.trim().toUpperCase();
+        if ("ACCESS".equals(normalized)) {
+            normalized = "ACCOUNT";
+        } else if ("OTHER".equals(normalized)) {
+            normalized = "GENERAL";
+        }
+
+        return CANONICAL_CATEGORIES.contains(normalized) ? normalized : null;
+    }
+
+    private Priority resolvePriority(String priority, Priority fallback) {
+        if (priority == null || priority.trim().isEmpty()) {
+            return fallback != null ? fallback : Priority.LOW;
+        }
+
+        try {
+            return Priority.valueOf(priority.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return fallback != null ? fallback : Priority.LOW;
+        }
+    }
+
+    private static class AIClassificationDecision {
+        private final String category;
+        private final Priority priority;
+        private final String decisionStatus;
+        private final boolean aiApplied;
+
+        private AIClassificationDecision(String category, Priority priority, String decisionStatus, boolean aiApplied) {
+            this.category = category;
+            this.priority = priority;
+            this.decisionStatus = decisionStatus;
+            this.aiApplied = aiApplied;
+        }
     }
 }

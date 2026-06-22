@@ -24,9 +24,15 @@ public class AIFeedbackResponse {
 
     private String predictedPriority;
     private String correctedPriority;
+    private String predictedImpact;
+    private String impactReason;
+    private String urgencySignals;
 
     private String predictionSource;   // RULE_BASED | ZERO_SHOT
     private Double confidenceScore;
+    private String modelVersion;
+    private String decisionStatus;
+    private Boolean aiApplied;
 
     /**
      * true  → AI đã sai, correction được ghi nhận

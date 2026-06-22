@@ -1,20 +1,53 @@
 import { useCallback, useEffect, useState } from 'react';
-import { UserPlus, Search, Shield, User as UserIcon, HeadphonesIcon, CheckCircle2, XCircle, Clock, Trash2 } from 'lucide-react';
-import { deleteUser, getAllUsers, getErrorMessage, updateUserStatus, type UserPayload } from '../../api/apiClient';
+import { UserPlus, Search, Shield, User as UserIcon, HeadphonesIcon, CheckCircle2, XCircle, Clock, Trash2, Edit3, X, Wifi, WifiOff } from 'lucide-react';
+import { deleteUser, getAllUsers, getErrorMessage, getUserPresence, updateUserStatus, adminCreateUser, updateUserRole, type UserPayload, type UserPresencePayload } from '../../api/apiClient';
+import { subscribeToUserPresence } from '../../services/websocket';
+
+type PresenceByUserId = Record<number, UserPresencePayload>;
+
+const formatLastSeen = (iso?: string | null) => {
+  if (!iso) return 'No recent activity';
+
+  const time = new Date(iso).getTime();
+  if (Number.isNaN(time)) return 'No recent activity';
+
+  const diff = Date.now() - time;
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  return new Date(iso).toLocaleString();
+};
 
 const Users = () => {
   const [users, setUsers] = useState<UserPayload[]>([]);
+  const [presenceByUserId, setPresenceByUserId] = useState<PresenceByUserId>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Modals state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({ username: '', password: '', name: '', email: '', phone: '', role: 'AGENT', agentType: 'SUPPORT' });
+
+  const [editingUser, setEditingUser] = useState<UserPayload | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editRole, setEditRole] = useState('AGENT');
+  const [editAgentType, setEditAgentType] = useState('SUPPORT');
+
   const loadUsers = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getAllUsers();
+      const [data, presence] = await Promise.all([getAllUsers(), getUserPresence()]);
       setUsers(data);
+      setPresenceByUserId(
+        presence.reduce<PresenceByUserId>((acc, item) => {
+          acc[item.userId] = item;
+          return acc;
+        }, {})
+      );
     } catch (err: unknown) {
       console.error('Failed to load users:', err);
       setError(getErrorMessage(err, 'Cannot connect to backend. Check that the server is running.'));
@@ -29,6 +62,17 @@ const Users = () => {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [loadUsers]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToUserPresence((presence) => {
+      setPresenceByUserId(prev => ({
+        ...prev,
+        [presence.userId]: presence,
+      }));
+    });
+
+    return unsubscribe;
+  }, []);
 
   const handleApprove = async (userId: number) => {
     try {
@@ -52,6 +96,38 @@ const Users = () => {
     } catch { setError('Failed to delete user.'); }
   };
 
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreating(true);
+    setError(null);
+    try {
+      const newUser = await adminCreateUser(createForm);
+      setUsers(prev => [...prev, newUser]);
+      setIsCreateModalOpen(false);
+      setCreateForm({ username: '', password: '', name: '', email: '', phone: '', role: 'AGENT', agentType: 'SUPPORT' });
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to create user.'));
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleUpdateRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setIsEditing(true);
+    setError(null);
+    try {
+      const updatedUser = await updateUserRole(editingUser.id, editRole, editRole === 'AGENT' ? editAgentType : undefined);
+      setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+      setEditingUser(null);
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to update role.'));
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
   const filteredUsers = users.filter(u => {
     const matchSearch =
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -62,6 +138,7 @@ const Users = () => {
   });
 
   const pendingCount = users.filter(u => u.status === 'PENDING').length;
+  const onlineCount = users.filter(u => presenceByUserId[u.id]?.activityStatus === 'ONLINE').length;
 
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -92,6 +169,29 @@ const Users = () => {
         </div>
       );
     }
+  };
+
+  const getActivityBadge = (userId: number) => {
+    const presence = presenceByUserId[userId];
+    const isOnline = presence?.activityStatus === 'ONLINE';
+
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-1.5">
+          {isOnline ? (
+            <Wifi size={13} className="text-emerald-500" />
+          ) : (
+            <WifiOff size={13} className="text-slate-400" />
+          )}
+          <span className={`text-xs font-semibold ${isOnline ? 'text-emerald-600' : 'text-slate-500'}`}>
+            {isOnline ? 'Online' : 'Offline'}
+          </span>
+        </div>
+        {!isOnline && (
+          <span className="text-[11px] text-slate-400">{formatLastSeen(presence?.lastSeenAt)}</span>
+        )}
+      </div>
+    );
   };
 
   const getRoleBadge = (role: string, agentType?: string) => {
@@ -132,7 +232,7 @@ const Users = () => {
         <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-800">User Management</h2>
-            <p className="text-sm text-slate-500">Manage roles, access control, and agent approvals · {users.length} total users</p>
+            <p className="text-sm text-slate-500">Manage roles, access control, and agent approvals · {users.length} total users · {onlineCount} online</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative">
@@ -155,8 +255,11 @@ const Users = () => {
               <option value="AGENT">Agent</option>
               <option value="CUSTOMER">Customer</option>
             </select>
-            <button onClick={loadUsers} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm">
+            <button onClick={() => setIsCreateModalOpen(true)} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm">
               <UserPlus size={16} />
+              <span className="hidden sm:inline">Create User</span>
+            </button>
+            <button onClick={loadUsers} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm">
               <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
@@ -170,6 +273,7 @@ const Users = () => {
                 <th className="p-4">Contact</th>
                 <th className="p-4">Role</th>
                 <th className="p-4">Status</th>
+                <th className="p-4">Activity</th>
                 <th className="p-4 text-right pr-6">Actions</th>
               </tr>
             </thead>
@@ -181,12 +285,13 @@ const Users = () => {
                     <td className="p-4"><div className="h-4 bg-slate-200 rounded w-40"></div></td>
                     <td className="p-4"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
                     <td className="p-4"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
+                    <td className="p-4"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
                     <td className="p-4"><div className="h-4 bg-slate-200 rounded w-24 ml-auto"></div></td>
                   </tr>
                 ))
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-12 text-center text-slate-400">
+                  <td colSpan={6} className="p-12 text-center text-slate-400">
                     <UserIcon size={32} className="mx-auto mb-3 opacity-20" />
                     <p>No users found.</p>
                   </td>
@@ -215,6 +320,7 @@ const Users = () => {
                     </div>
                   </td>
                   <td className="p-4">{getStatusBadge(u.status)}</td>
+                  <td className="p-4">{getActivityBadge(u.id)}</td>
                   <td className="p-4 text-right pr-6">
                     <div className="flex items-center justify-end gap-2">
                       {u.status === 'PENDING' && (
@@ -229,14 +335,19 @@ const Users = () => {
                           </button>
                         </>
                       )}
+
+                      {u.role !== 'CUSTOMER' && (
+                        <button onClick={() => { setEditingUser(u); setEditRole(u.role); setEditAgentType(u.agentType || 'SUPPORT'); }}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Role">
+                          <Edit3 size={15} />
+                        </button>
+                      )}
+
                       {u.role !== 'ADMIN' && (
                         <button onClick={() => handleDelete(u.id)}
                           className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete user">
                           <Trash2 size={15} />
                         </button>
-                      )}
-                      {u.role === 'ADMIN' && (
-                        <span className="text-xs text-slate-400 italic">System Account</span>
                       )}
                     </div>
                   </td>
@@ -251,6 +362,116 @@ const Users = () => {
           <p className="text-xs text-slate-400">Data stored in SQL Server (TicketDB)</p>
         </div>
       </div>
+
+      {/* Create User Modal */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 text-lg">Create New User</h3>
+              <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateUser} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Username *</label>
+                <input required type="text" value={createForm.username} onChange={e => setCreateForm({...createForm, username: e.target.value})} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Password *</label>
+                <input required type="password" value={createForm.password} onChange={e => setCreateForm({...createForm, password: e.target.value})} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Full Name *</label>
+                <input required type="text" value={createForm.name} onChange={e => setCreateForm({...createForm, name: e.target.value})} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Email</label>
+                  <input type="email" value={createForm.email} onChange={e => setCreateForm({...createForm, email: e.target.value})} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Phone</label>
+                  <input type="text" value={createForm.phone} onChange={e => setCreateForm({...createForm, phone: e.target.value})} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Role</label>
+                  <select value={createForm.role} onChange={e => setCreateForm({...createForm, role: e.target.value})} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+                    <option value="AGENT">Agent</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                </div>
+                {createForm.role === 'AGENT' && (
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Agent Type</label>
+                    <select value={createForm.agentType} onChange={e => setCreateForm({...createForm, agentType: e.target.value})} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+                      <option value="SUPPORT">Support</option>
+                      <option value="DEV">Dev</option>
+                      <option value="TESTER">Tester</option>
+                      <option value="SYSTEM">System</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+              <div className="pt-4 flex justify-end gap-2">
+                <button type="button" onClick={() => setIsCreateModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                <button type="submit" disabled={isCreating} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2">
+                  {isCreating ? 'Creating...' : 'Create User'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Role Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 text-lg">Edit User Role</h3>
+              <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateRole} className="p-6 space-y-4">
+              <div className="p-3 bg-slate-50 rounded-lg mb-4">
+                <p className="text-sm font-semibold text-slate-800">{editingUser.name}</p>
+                <p className="text-xs text-slate-500">@{editingUser.username}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Role</label>
+                <select value={editRole} onChange={e => setEditRole(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+                  <option value="AGENT">Agent</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="CUSTOMER">Customer</option>
+                </select>
+              </div>
+              {editRole === 'AGENT' && (
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Agent Type</label>
+                  <select value={editAgentType} onChange={e => setEditAgentType(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+                    <option value="SUPPORT">Support</option>
+                    <option value="DEV">Dev</option>
+                    <option value="TESTER">Tester</option>
+                    <option value="SYSTEM">System</option>
+                  </select>
+                </div>
+              )}
+              <div className="pt-4 flex justify-end gap-2">
+                <button type="button" onClick={() => setEditingUser(null)} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                <button type="submit" disabled={isEditing} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2">
+                  {isEditing ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Search, Bell, LogOut, AlertCircle, Info, MessageSquare, User, Briefcase, Shield, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/auth';
 import { getNotifications, markNotificationAsRead, type Notification } from '../api/apiClient';
-import { connectWebSocket, subscribeToNotifications } from '../services/websocket';
+import { connectWebSocket, disconnectWebSocket, subscribeToNotifications } from '../services/websocket';
 import logoUrl from '../assets/logo_nobg.png';
 
 function formatRelative(iso: string) {
@@ -87,6 +87,7 @@ const Navbar: React.FC = () => {
 
   const handleLogout = () => {
     const isStaff = user?.role === 'ADMIN' || user?.role === 'AGENT';
+    disconnectWebSocket();
     logout();
     navigate(isStaff ? '/staff/login' : '/login');
   };
@@ -267,7 +268,7 @@ const ProfileMenu = ({ user, onLogout }: ProfileMenuProps) => {
               {user.status && (
                 <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-400">
                   <div className={`w-2 h-2 rounded-full shrink-0 ${user.status === 'ACTIVE' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                  <span>{user.status === 'ACTIVE' ? 'Đang hoạt động' : user.status}</span>
+                  <span>{user.status === 'ACTIVE' ? 'Active' : user.status}</span>
                 </div>
               )}
               {user.agentType && (
@@ -286,14 +287,14 @@ const ProfileMenu = ({ user, onLogout }: ProfileMenuProps) => {
               className="w-full flex items-center gap-2 px-3 py-2.5 mt-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors"
             >
               <User size={15} />
-              Trang cá nhân
+              Profile
             </Link>
             <button
               onClick={() => { setOpen(false); onLogout(); }}
               className="w-full flex items-center gap-2 px-3 py-2.5 mt-1 text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
             >
               <LogOut size={15} />
-              Đăng xuất
+              Logout
             </button>
           </div>
         </div>

@@ -54,7 +54,7 @@ function ensurePeerConnection(): RTCPeerConnection {
 async function attachLocalStream(): Promise<MediaStream> {
   if (localStream) return localStream; // Prevent re-prompting
 
-  const constraints = currentMicId ? { audio: { deviceId: { exact: currentMicId } }, video: false } : { audio: true, video: false };
+  const constraints = currentMicId ? { audio: { deviceId: { exact: currentMicId } }, video: true } : { audio: true, video: true };
   localStream = await navigator.mediaDevices.getUserMedia(constraints);
 
   const pc = ensurePeerConnection();

@@ -104,6 +104,9 @@ const DEFAULT_SETTINGS: SystemSettings = {
   agentCanViewAllTickets: false,
   agentCanExportData: false,
   aiServiceUrl: 'http://localhost:8000',
+  aiAutoApplyEnabled: true,
+  aiAutoApplyThreshold: 0.8,
+  aiSuggestThreshold: 0.5,
 };
 
 const SettingsPage = () => {
@@ -118,7 +121,7 @@ const SettingsPage = () => {
     setLoading(true);
     try {
       const data = await getSettings();
-      setForm(data);
+      setForm({ ...DEFAULT_SETTINGS, ...data });
     } catch {
       setForm(DEFAULT_SETTINGS);
     } finally {
@@ -387,6 +390,43 @@ const SettingsPage = () => {
               className="w-64 px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-400 font-mono"
             />
           </SettingRow>
+          <SettingRow
+            icon={form.aiAutoApplyEnabled ? <ToggleRight size={18} className="text-purple-500" /> : <ToggleLeft size={18} />}
+            label="Auto-apply confident AI"
+            description="Apply AI category and priority only when confidence reaches the auto threshold"
+          >
+            <Toggle value={form.aiAutoApplyEnabled} onChange={v => set('aiAutoApplyEnabled', v)} />
+          </SettingRow>
+          <SettingRow
+            icon={<Bot size={18} />}
+            label="Auto-apply Threshold"
+            description="Confidence required before AI updates the ticket fields"
+          >
+            <input
+              type="number"
+              value={form.aiAutoApplyThreshold}
+              min={0}
+              max={1}
+              step={0.05}
+              onChange={e => set('aiAutoApplyThreshold', Math.max(0, Math.min(1, Number(e.target.value))))}
+              className="w-24 px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-400"
+            />
+          </SettingRow>
+          <SettingRow
+            icon={<AlertCircle size={18} />}
+            label="Suggest Threshold"
+            description="Confidence required before AI is shown as a suggestion without auto-applying"
+          >
+            <input
+              type="number"
+              value={form.aiSuggestThreshold}
+              min={0}
+              max={1}
+              step={0.05}
+              onChange={e => set('aiSuggestThreshold', Math.max(0, Math.min(1, Number(e.target.value))))}
+              className="w-24 px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-400"
+            />
+          </SettingRow>
           <div className="py-4">
             <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/40 rounded-xl">
               <Bot size={16} className="text-blue-500 mt-0.5 shrink-0" />
@@ -395,8 +435,8 @@ const SettingsPage = () => {
                 <ul className="space-y-0.5 list-disc list-inside">
                   <li>Automatic ticket category detection</li>
                   <li>Priority suggestion based on description</li>
-                  <li>Duplicate ticket detection</li>
                 </ul>
+                <p className="mt-2 text-blue-600 dark:text-blue-300">Planned: duplicate ticket detection and routing suggestions.</p>
               </div>
             </div>
           </div>

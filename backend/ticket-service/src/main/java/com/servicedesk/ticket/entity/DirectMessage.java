@@ -44,4 +44,12 @@ public class DirectMessage {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "read_by_ids", columnDefinition = "NVARCHAR(MAX)")
+    @Builder.Default
+    private String readByIds = ""; // comma-separated user IDs
+
+    @Column(name = "reactions", columnDefinition = "NVARCHAR(MAX)")
+    @Builder.Default
+    private String reactions = "{}"; // JSON string representing emoji -> list of user IDs
 }

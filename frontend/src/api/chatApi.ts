@@ -16,6 +16,8 @@ export interface DirectMessagePayload {
   fileUrl?: string;
   fileName?: string;
   createdAt: string;
+  readByIds?: string;
+  reactions?: string;
 }
 
 export interface ConversationPayload {

@@ -54,6 +54,9 @@ public class SettingsServiceImpl implements SettingsService {
         if (dto.getAgentCanExportData() != null) s.setAgentCanExportData(dto.getAgentCanExportData());
 
         if (dto.getAiServiceUrl() != null) s.setAiServiceUrl(dto.getAiServiceUrl());
+        if (dto.getAiAutoApplyEnabled() != null) s.setAiAutoApplyEnabled(dto.getAiAutoApplyEnabled());
+        if (dto.getAiAutoApplyThreshold() != null) s.setAiAutoApplyThreshold(clampConfidence(dto.getAiAutoApplyThreshold()));
+        if (dto.getAiSuggestThreshold() != null) s.setAiSuggestThreshold(clampConfidence(dto.getAiSuggestThreshold()));
 
         return mapToDto(settingsRepository.save(s));
     }
@@ -74,6 +77,13 @@ public class SettingsServiceImpl implements SettingsService {
                 .agentCanViewAllTickets(s.getAgentCanViewAllTickets())
                 .agentCanExportData(s.getAgentCanExportData())
                 .aiServiceUrl(s.getAiServiceUrl())
+                .aiAutoApplyEnabled(s.getAiAutoApplyEnabled() != null ? s.getAiAutoApplyEnabled() : true)
+                .aiAutoApplyThreshold(s.getAiAutoApplyThreshold() != null ? s.getAiAutoApplyThreshold() : 0.8)
+                .aiSuggestThreshold(s.getAiSuggestThreshold() != null ? s.getAiSuggestThreshold() : 0.5)
                 .build();
+    }
+
+    private double clampConfidence(double value) {
+        return Math.max(0.0, Math.min(1.0, value));
     }
 }

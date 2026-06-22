@@ -18,6 +18,9 @@ export interface SystemSettings {
   agentCanViewAllTickets: boolean;
   agentCanExportData: boolean;
   aiServiceUrl: string;
+  aiAutoApplyEnabled: boolean;
+  aiAutoApplyThreshold: number;
+  aiSuggestThreshold: number;
 }
 
 export const getSettings = async (): Promise<SystemSettings> => {

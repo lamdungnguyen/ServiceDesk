@@ -14,4 +14,6 @@ public interface MessagingService {
     DirectMessageDto saveMessage(SendDmRequest request);
     void addMember(Long conversationId, Long userId, Long requestingUserId);
     void removeMember(Long conversationId, Long userId, Long requestingUserId);
+    DirectMessageDto markAsRead(Long messageId, Long userId);
+    DirectMessageDto reactToMessage(Long messageId, Long userId, String reaction);
 }

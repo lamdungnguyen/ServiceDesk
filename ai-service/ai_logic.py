@@ -14,6 +14,14 @@ CONFIDENCE_THRESHOLD = 0.5
 # Prediction sources
 SOURCE_RULE_BASED = "RULE_BASED"
 SOURCE_ZERO_SHOT  = "ZERO_SHOT"
+SOURCE_FALLBACK   = "FALLBACK"
+
+# Business impact labels
+IMPACT_NONE = "NONE"
+IMPACT_SINGLE_USER = "SINGLE_USER"
+IMPACT_MULTIPLE_USERS = "MULTIPLE_USERS"
+IMPACT_BUSINESS_BLOCKING = "BUSINESS_BLOCKING"
+IMPACT_SYSTEM_OUTAGE = "SYSTEM_OUTAGE"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CATEGORY KEYWORD DICTIONARY
@@ -153,7 +161,70 @@ def classify_category(text: str) -> tuple[str, str, str, float]:
         return "GENERAL", "Fallback due to classification model error", SOURCE_ZERO_SHOT, 0.0
 
 
-def predict_priority(text: str, sentiment: str) -> tuple[str, str]:
+def detect_impact(text: str) -> tuple[str, str, list[str]]:
+    """
+    Returns (impact, reason, urgency_signals).
+    Impact is a business/technical severity signal and should carry more weight
+    than sentiment when deciding priority.
+    """
+    text_lower = text.lower()
+    signals: list[str] = []
+
+    system_outage_keywords = [
+        "system down", "server down", "production down", "prod down",
+        "outage", "service unavailable", "database down", "db down",
+        "all users cannot work", "everyone cannot work", "entire system",
+        "sap he thong", "sập hệ thống", "he thong sap", "hệ thống sập",
+        "toan bo he thong", "toàn bộ hệ thống",
+    ]
+    business_blocking_keywords = [
+        "cannot work", "can't work", "unable to work", "business stopped",
+        "blocked", "blocking", "cannot sell", "cannot invoice",
+        "khong lam duoc viec", "không làm được việc",
+        "khong the lam viec", "không thể làm việc",
+        "khong xuat hoa don", "không xuất hóa đơn",
+        "dung hoat dong", "dừng hoạt động",
+    ]
+    multiple_user_keywords = [
+        "all users", "everyone", "many users", "multiple users",
+        "whole team", "entire team", "department", "office",
+        "tat ca nguoi dung", "tất cả người dùng",
+        "nhieu nguoi", "nhiều người", "ca phong", "cả phòng",
+        "toan bo phong", "toàn bộ phòng",
+    ]
+    single_user_keywords = [
+        "my account", "my laptop", "my computer", "i cannot", "i can't",
+        "toi khong", "tôi không", "may cua toi", "máy của tôi",
+        "tai khoan cua toi", "tài khoản của tôi",
+    ]
+
+    def collect_matches(keywords: list[str]) -> list[str]:
+        return [kw for kw in keywords if kw in text_lower]
+
+    matched = collect_matches(system_outage_keywords)
+    if matched:
+        signals.extend(matched[:4])
+        return IMPACT_SYSTEM_OUTAGE, "Matched system outage impact keywords", signals
+
+    matched = collect_matches(business_blocking_keywords)
+    if matched:
+        signals.extend(matched[:4])
+        return IMPACT_BUSINESS_BLOCKING, "Matched business blocking impact keywords", signals
+
+    matched = collect_matches(multiple_user_keywords)
+    if matched:
+        signals.extend(matched[:4])
+        return IMPACT_MULTIPLE_USERS, "Matched multiple-user impact keywords", signals
+
+    matched = collect_matches(single_user_keywords)
+    if matched:
+        signals.extend(matched[:4])
+        return IMPACT_SINGLE_USER, "Matched single-user impact keywords", signals
+
+    return IMPACT_NONE, "No explicit business impact detected", signals
+
+
+def predict_priority(text: str, sentiment: str, impact: str = IMPACT_NONE) -> tuple[str, str]:
     """
     Returns (priority, reason)
     Combines rule-based keyword matching with sentiment analysis.
@@ -161,13 +232,34 @@ def predict_priority(text: str, sentiment: str) -> tuple[str, str]:
     """
     text_lower = text.lower()
 
+    urgent_keywords = [
+        "system down", "server down", "production down", "prod down",
+        "outage", "critical", "cannot work", "can't work", "unable to work",
+        "all users", "everyone affected", "business stopped",
+        "sập hệ thống", "sap he thong", "khẩn cấp", "khan cap",
+        "không làm được việc", "khong lam duoc viec",
+        "toàn bộ", "toan bo", "ngừng hoạt động", "ngung hoat dong",
+    ]
     high_keywords   = ["down", "urgent", "cannot work", "critical", "broken", "fail",
                        "sập", "khẩn cấp", "không làm được việc", "hỏng"]
     medium_keywords = ["slow", "delay", "issue", "error", "bug",
                        "chậm", "lỗi", "trễ", "vấn đề"]
 
+    has_urgent = any(kw in text_lower for kw in urgent_keywords)
     has_high   = any(kw in text_lower for kw in high_keywords)
     has_medium = any(kw in text_lower for kw in medium_keywords)
+
+    if impact == IMPACT_SYSTEM_OUTAGE:
+        return "URGENT", "System outage impact detected"
+
+    if impact == IMPACT_BUSINESS_BLOCKING:
+        return "URGENT" if has_urgent else "HIGH", "Business blocking impact detected"
+
+    if impact == IMPACT_MULTIPLE_USERS and (has_high or has_medium):
+        return "HIGH", "Multiple users affected with issue keywords"
+
+    if has_urgent:
+        return "URGENT", "Matched urgent business-impact keywords"
 
     if has_high:
         if sentiment == "NEGATIVE":

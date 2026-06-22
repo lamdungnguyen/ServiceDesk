@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Shield, Lock, User as UserIcon, Loader2, ArrowRight, LayoutDashboard, Database, Activity } from 'lucide-react';
 import { useAuth } from '../context/auth';
 import { Link, useNavigate } from 'react-router-dom';
-import { getErrorMessage, loginUser, registerUser } from '../api/apiClient';
+import { getErrorMessage, loginUser } from '../api/apiClient';
 import logoUrl from '../assets/logo_nobg.png';
 
 const FEATURES = [
@@ -28,14 +28,9 @@ const formatStaffAuthError = (err: unknown) => {
 const StaffLogin = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [isLoginTab, setIsLoginTab] = useState(true);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [agentType, setAgentType] = useState('SUPPORT');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -47,22 +42,14 @@ const StaffLogin = () => {
     setIsLoading(true);
 
     try {
-      if (isLoginTab) {
-        const authData = await loginUser(username, password);
-        const userData = authData.user;
-        if (userData.role !== 'ADMIN' && userData.role !== 'AGENT') {
-          setError('This is the Staff Portal. Customers should sign in from the Customer Portal.');
-          return;
-        }
-        login({ id: userData.id, role: userData.role, name: userData.name, username: userData.username, agentType: userData.agentType, status: userData.status, token: authData.token });
-        navigate(userData.role === 'ADMIN' ? '/admin/dashboard' : '/staff/dashboard');
-      } else {
-        await registerUser({ username, password, name, email, phone, role: 'AGENT', agentType });
-        setSuccess('Agent registration submitted. Your account is pending admin approval before staff access is enabled.');
-        setIsLoginTab(true);
-        setUsername('');
-        setPassword('');
+      const authData = await loginUser(username, password);
+      const userData = authData.user;
+      if (userData.role !== 'ADMIN' && userData.role !== 'AGENT') {
+        setError('This is the Staff Portal. Customers should sign in from the Customer Portal.');
+        return;
       }
+      login({ id: userData.id, role: userData.role, name: userData.name, username: userData.username, agentType: userData.agentType, status: userData.status, token: authData.token });
+      navigate(userData.role === 'ADMIN' ? '/admin/dashboard' : '/staff/dashboard');
     } catch (err: unknown) {
       setError(formatStaffAuthError(err));
     } finally {
@@ -97,28 +84,11 @@ const StaffLogin = () => {
                 Secure Access
               </div>
               <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight">
-                {isLoginTab ? 'Agent Sign In' : 'Agent Registration'}
+                Agent Sign In
               </h2>
               <p className="text-slate-500 dark:text-slate-400 font-medium">
-                {isLoginTab ? 'Authenticate to access the workspace.' : 'Request access to the staff portal.'}
+                Authenticate to access the workspace.
               </p>
-            </div>
-
-            <div className="flex p-1.5 bg-slate-200/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl mb-8 border border-slate-300/50 dark:border-slate-700/50 shadow-inner">
-              <button
-                type="button"
-                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${isLoginTab ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-md ring-1 ring-slate-200/50 dark:ring-slate-600/50' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                onClick={() => { setIsLoginTab(true); setError(null); setSuccess(null); }}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${!isLoginTab ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-md ring-1 ring-slate-200/50 dark:ring-slate-600/50' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                onClick={() => { setIsLoginTab(false); setError(null); setSuccess(null); }}
-              >
-                Register
-              </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -133,66 +103,6 @@ const StaffLogin = () => {
                 <div className="p-4 bg-emerald-50/80 dark:bg-emerald-500/10 backdrop-blur-md border border-emerald-200 dark:border-emerald-500/30 rounded-2xl text-emerald-600 dark:text-emerald-400 text-sm font-semibold flex items-center gap-3">
                   <Shield size={16} className="shrink-0" />
                   <span>{success}</span>
-                </div>
-              )}
-
-              {!isLoginTab && (
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Full Name</label>
-                  <div className="relative group">
-                    <UserIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-purple-500 transition-colors" />
-                    <input
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none text-slate-900 dark:text-white transition-all backdrop-blur-sm shadow-sm"
-                      placeholder="Jane Doe"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {!isLoginTab && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Email</label>
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none text-slate-900 dark:text-white transition-all backdrop-blur-sm shadow-sm"
-                      placeholder="name@company.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Phone</label>
-                    <input
-                      type="text"
-                      required
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none text-slate-900 dark:text-white transition-all backdrop-blur-sm shadow-sm"
-                      placeholder="+1 234 567"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {!isLoginTab && (
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Agent Role</label>
-                  <select
-                    value={agentType}
-                    onChange={(e) => setAgentType(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none text-slate-900 dark:text-white transition-all backdrop-blur-sm shadow-sm appearance-none cursor-pointer"
-                  >
-                    <option value="SUPPORT">Support Specialist</option>
-                    <option value="DEV">Developer</option>
-                    <option value="TESTER">QA / Tester</option>
-                    <option value="SYSTEM">System Engineer</option>
-                  </select>
                 </div>
               )}
 
@@ -235,7 +145,7 @@ const StaffLogin = () => {
                   <Loader2 size={18} className="animate-spin" />
                 ) : (
                   <>
-                    {isLoginTab ? 'Continue to Workspace' : 'Submit for Approval'}
+                    Continue to Workspace
                     <ArrowRight size={18} />
                   </>
                 )}

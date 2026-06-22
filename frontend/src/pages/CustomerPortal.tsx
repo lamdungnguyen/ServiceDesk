@@ -247,8 +247,8 @@ const CustomerPortal = () => {
                     <option value="SOFTWARE">Software & Applications</option>
                     <option value="HARDWARE">Hardware & Devices</option>
                     <option value="NETWORK">Network & Connectivity</option>
-                    <option value="ACCESS">Access & Authentication</option>
-                    <option value="OTHER">Other Request</option>
+                    <option value="ACCOUNT">Access & Authentication</option>
+                    <option value="GENERAL">Other Request</option>
                   </select>
                 </div>
               </div>

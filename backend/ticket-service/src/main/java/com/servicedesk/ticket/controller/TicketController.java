@@ -1,6 +1,9 @@
 package com.servicedesk.ticket.controller;
 
 import com.servicedesk.ticket.dto.TicketAuditLogResponse;
+import com.servicedesk.ticket.dto.SimilarTicketResponse;
+import com.servicedesk.ticket.dto.RoutingSuggestionResponse;
+import com.servicedesk.ticket.dto.TicketAiSummaryResponse;
 import com.servicedesk.ticket.dto.TicketCreateRequest;
 import com.servicedesk.ticket.dto.TicketResponse;
 import com.servicedesk.ticket.enums.TicketStatus;
@@ -36,6 +39,21 @@ public class TicketController {
     @GetMapping("/{id}/audit-logs")
     public ResponseEntity<List<TicketAuditLogResponse>> getAuditLogs(@PathVariable Long id) {
         return ResponseEntity.ok(ticketService.getAuditLogsForTicket(id));
+    }
+
+    @GetMapping("/{id}/similar")
+    public ResponseEntity<List<SimilarTicketResponse>> getSimilarTickets(@PathVariable Long id) {
+        return ResponseEntity.ok(ticketService.getSimilarTickets(id));
+    }
+
+    @GetMapping("/{id}/ai-summary")
+    public ResponseEntity<TicketAiSummaryResponse> getAiSummary(@PathVariable Long id) {
+        return ResponseEntity.ok(ticketService.getAiSummary(id));
+    }
+
+    @GetMapping("/{id}/routing-suggestions")
+    public ResponseEntity<List<RoutingSuggestionResponse>> getRoutingSuggestions(@PathVariable Long id) {
+        return ResponseEntity.ok(ticketService.getRoutingSuggestions(id));
     }
 
     @GetMapping

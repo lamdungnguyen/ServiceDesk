@@ -1,6 +1,9 @@
 package com.servicedesk.ticket.controller;
 
 import com.servicedesk.ticket.dto.DirectMessageDto;
+import com.servicedesk.ticket.dto.DmReadRequest;
+import com.servicedesk.ticket.dto.DmReactRequest;
+import com.servicedesk.ticket.dto.DmTypingRequest;
 import com.servicedesk.ticket.dto.SendDmRequest;
 import com.servicedesk.ticket.service.MessagingService;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,32 @@ public class DmController {
         messagingTemplate.convertAndSend(
                 "/topic/dm/" + request.getConversationId(),
                 saved
+        );
+    }
+
+    @MessageMapping("/dm.read")
+    public void markAsRead(@Payload DmReadRequest request) {
+        DirectMessageDto updated = messagingService.markAsRead(request.getMessageId(), request.getUserId());
+        messagingTemplate.convertAndSend(
+                "/topic/dm/" + request.getConversationId() + "/update",
+                updated
+        );
+    }
+
+    @MessageMapping("/dm.react")
+    public void reactToMessage(@Payload DmReactRequest request) {
+        DirectMessageDto updated = messagingService.reactToMessage(request.getMessageId(), request.getUserId(), request.getReaction());
+        messagingTemplate.convertAndSend(
+                "/topic/dm/" + request.getConversationId() + "/update",
+                updated
+        );
+    }
+
+    @MessageMapping("/dm.typing")
+    public void typingStatus(@Payload DmTypingRequest request) {
+        messagingTemplate.convertAndSend(
+                "/topic/dm/" + request.getConversationId() + "/typing",
+                request
         );
     }
 }

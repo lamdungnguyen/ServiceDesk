@@ -55,7 +55,7 @@ const AgentWorkspace = () => {
 
   const buildApiParams = useCallback((): TicketFilterParams => {
     const params: TicketFilterParams = {
-      assignedToMe: true, // Luôn filter theo assignee — kể cả Admin dùng Agent workspace
+      assignedToMe: true, // Always filter by assignee — even for Admin using Agent workspace
     };
 
     if (activeTab === 'in_progress') {
@@ -306,8 +306,8 @@ const AgentWorkspace = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.306 5.48.183.184.281.436.273.693l-.062 2.05c-.007.243.19.444.428.411l2.091-.284c.241-.033.486.012.697.126A8.67 8.67 0 0012 20.25z" />
                         </svg>
                       </div>
-                      <p className="text-lg font-medium text-slate-600 dark:text-slate-300">Trung tâm Hỗ trợ</p>
-                      <p className="text-sm max-w-sm text-center">Chọn một yêu cầu hỗ trợ từ danh sách bên trái để xem chi tiết và trò chuyện.</p>
+                      <p className="text-lg font-medium text-slate-600 dark:text-slate-300">Support Center</p>
+                      <p className="text-sm max-w-sm text-center">Select a support request from the list on the left to view details and chat.</p>
                     </div>
                   )
                 ) : (

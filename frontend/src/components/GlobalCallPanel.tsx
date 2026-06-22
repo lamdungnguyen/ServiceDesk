@@ -287,7 +287,7 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
               <div className="min-w-0">
                 <p className="font-bold text-slate-800 dark:text-white text-sm truncate">{callerName}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Gọi từ&nbsp;
+                  Call from&nbsp;
                   <span className="font-semibold text-blue-600 dark:text-blue-400">
                     Ticket #{incoming.ticketId}
                   </span>
@@ -299,13 +299,13 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
                 onClick={handleReject}
                 className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors"
               >
-                <X size={15} /> Từ chối
+                <X size={15} /> Reject
               </button>
               <button
                 onClick={handleAccept}
                 className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold transition-colors"
               >
-                <PhoneCall size={15} /> Nghe
+                <PhoneCall size={15} /> Accept
               </button>
             </div>
           </div>
@@ -316,7 +316,7 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
       {status === 'calling' && (
         <div className="fixed bottom-6 right-6 z-[300] bg-slate-800 text-white px-5 py-3 rounded-2xl shadow-lg flex items-center gap-3 animate-in slide-in-from-bottom-6 fade-in duration-200">
           <span className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse" />
-          <span className="text-sm font-semibold">Đang kết nối…</span>
+          <span className="text-sm font-semibold">Connecting…</span>
           <button onClick={handleEnd} className="ml-2 text-red-400 hover:text-red-300">
             <PhoneOff size={16} />
           </button>
@@ -337,7 +337,7 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
                 <p className="text-sm font-bold text-white truncate">{callerName}</p>
                 <p className="text-base font-mono font-bold text-emerald-400 tabular-nums">{formatDuration(duration)}</p>
               </div>
-              <button onClick={() => setMinimized(false)} className="text-slate-400 hover:text-white transition-colors" title="Mở rộng">
+              <button onClick={() => setMinimized(false)} className="text-slate-400 hover:text-white transition-colors" title="Expand">
                 <Maximize2 size={16} />
               </button>
             </div>
@@ -349,10 +349,10 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
                 }`}
               >
                 {muted ? <MicOff size={14} /> : <Mic size={14} />}
-                {muted ? 'Bỏ tắt' : 'Tắt tiếng'}
+                {muted ? 'Unmute' : 'Mute'}
               </button>
               <button onClick={handleEnd} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-red-500 hover:bg-red-400 text-white text-xs font-bold transition-all">
-                <PhoneOff size={14} /> Kết thúc
+                <PhoneOff size={14} /> End call
               </button>
             </div>
           </div>
@@ -371,11 +371,11 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
               </div>
               <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-full">
                 <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                <span className="text-emerald-300 text-xs font-bold uppercase tracking-wider">Đang kết nối</span>
+                <span className="text-emerald-300 text-xs font-bold uppercase tracking-wider">Connecting</span>
               </div>
             </div>
             <div className="flex flex-col items-end gap-1">
-              <button onClick={() => setMinimized(true)} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors shadow-xl" title="Thu nhỏ">
+              <button onClick={() => setMinimized(true)} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors shadow-xl" title="Minimize">
                 <Minimize2 size={20} />
               </button>
             </div>
@@ -413,7 +413,7 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
                   className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95 ${
                     muted ? 'bg-amber-500 text-white shadow-amber-500/30' : 'bg-white/20 hover:bg-white/30 text-white'
                   }`}
-                  title={muted ? 'Bỏ tắt tiếng' : 'Tắt tiếng'}
+                  title={muted ? 'Unmute' : 'Mute'}
                 >
                   {muted ? <MicOff size={24} /> : <Mic size={24} />}
                 </button>
@@ -423,7 +423,7 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
                 <button
                   onClick={handleEnd}
                   className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-500 hover:bg-red-400 flex items-center justify-center text-white shadow-2xl shadow-red-500/40 transition-all active:scale-95 hover:scale-105 mx-4"
-                  title="Kết thúc"
+                  title="End call"
                 >
                   <PhoneOff size={28} />
                 </button>
@@ -435,7 +435,7 @@ const GlobalCallPanel = ({ agentId, agentName, currentViewingTicketId }: GlobalC
                   className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all active:scale-95 ${
                     showSettings ? 'bg-white/30 text-white' : 'bg-white/20 hover:bg-white/30 text-white'
                   }`}
-                  title="Cài đặt"
+                  title="Settings"
                 >
                   <Settings2 size={24} />
                 </button>

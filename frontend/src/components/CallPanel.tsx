@@ -31,7 +31,7 @@ interface CallPanelProps {
 const CallPanel = ({ ticketId, selfId, selfName, selfRole, peerId, peerName, disabledReason }: CallPanelProps) => {
   const [status, setStatus] = useState<CallStatus>('idle');
   const [muted, setMutedState] = useState(false);
-  const [videoEnabled, setVideoEnabledState] = useState(false);
+  const [videoEnabled, setVideoEnabledState] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [incoming, setIncoming] = useState<CallSignal | null>(null);
   const [callerName, setCallerName] = useState<string>('');
