@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mail, Phone, Briefcase, Shield, Clock } from 'lucide-react';
-import { getAllUsers, type UserPayload } from '../api/apiClient';
+import { getUserById, type UserPayload } from '../api/apiClient';
 
 interface UserProfilePopoverProps {
   userId: number;
@@ -27,15 +27,16 @@ const UserProfilePopover = ({ userId, userName, children }: UserProfilePopoverPr
   }, [isOpen]);
 
   const handleOpen = async () => {
-    setIsOpen(prev => !prev);
-    if (!user && !isOpen) {
+    const opening = !isOpen;
+    setIsOpen(opening);
+    if (opening && !user) {
       setLoading(true);
       try {
-        const users = await getAllUsers();
-        const found = users.find(u => u.id === userId);
-        if (found) setUser(found);
+        const foundUser = await getUserById(userId);
+        setUser(foundUser);
       } catch (err) {
         console.error('Failed to fetch user', err);
+        setUser(null);
       } finally {
         setLoading(false);
       }
