@@ -19,13 +19,24 @@ let connectionPromise: Promise<void> | null = null;
 const subscriptions = new Map<string, { unsubscribe: () => void }>();
 
 function getWsUrl(): string {
-  // Use relative URL — Vite proxy will forward to backend
   const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
   return `${protocol}://${window.location.host}/ws`;
 }
 
 function getAuthConnectHeaders(): Record<string, string> {
-  const savedUser = localStorage.getItem('auth_user');
+  const savedUser = sessionStorage.getItem('auth_user');
+  if (!savedUser) return {};
+
+  try {
+    const user = JSON.parse(savedUser) as { token?: string | null };
+    return user.token ? { Authorization: `Bearer ${user.token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
+function getAuthSubscriptionHeaders(): Record<string, string> {
+  const savedUser = sessionStorage.getItem('auth_user');
   if (!savedUser) return {};
 
   try {
@@ -53,7 +64,6 @@ export function connectWebSocket(): Promise<void> {
       heartbeatOutgoing: 4000,
       debug: (msg) => {
         if (import.meta.env.DEV) {
-          // Quiet the heartbeat spam, only log important stuff
           if (!msg.includes('heart-beat') && !msg.includes('PING') && !msg.includes('PONG')) {
             console.log('[WS]', msg);
           }
@@ -85,7 +95,6 @@ export function connectWebSocket(): Promise<void> {
 export function subscribeToTicket(ticketId: number, onMessage: MessageHandler): () => void {
   const destination = `/topic/ticket/${ticketId}`;
 
-  // Avoid duplicate subscriptions
   if (subscriptions.has(destination)) {
     subscriptions.get(destination)!.unsubscribe();
     subscriptions.delete(destination);
@@ -93,11 +102,23 @@ export function subscribeToTicket(ticketId: number, onMessage: MessageHandler): 
 
   let isUnsubscribed = false;
 
+  const doSubscribe = () => {
+    if (!stompClient?.connected) return;
+    const sub = stompClient.subscribe(destination, (message: IMessage) => {
+      try {
+        const parsed: ChatMessagePayload = JSON.parse(message.body);
+        onMessage(parsed);
+      } catch (err) {
+        console.error('[WS] Failed to parse message', err);
+      }
+    }, getAuthSubscriptionHeaders());
+    subscriptions.set(destination, sub);
+  };
+
   if (!stompClient?.connected) {
-    console.warn('[WS] Not connected, attempting to connect and subscribe...');
     connectWebSocket().then(() => {
       if (!isUnsubscribed) {
-        doSubscribe(destination, onMessage);
+        doSubscribe();
       }
     });
     return () => {
@@ -109,7 +130,7 @@ export function subscribeToTicket(ticketId: number, onMessage: MessageHandler): 
     };
   }
 
-  doSubscribe(destination, onMessage);
+  doSubscribe();
 
   return () => {
     isUnsubscribed = true;
@@ -118,21 +139,6 @@ export function subscribeToTicket(ticketId: number, onMessage: MessageHandler): 
       subscriptions.delete(destination);
     }
   };
-}
-
-function doSubscribe(destination: string, onMessage: MessageHandler) {
-  if (!stompClient?.connected) return;
-
-  const sub = stompClient.subscribe(destination, (message: IMessage) => {
-    try {
-      const parsed: ChatMessagePayload = JSON.parse(message.body);
-      onMessage(parsed);
-    } catch (err) {
-      console.error('[WS] Failed to parse message', err);
-    }
-  });
-
-  subscriptions.set(destination, sub);
 }
 
 export function sendChatMessage(message: Omit<ChatMessagePayload, 'id' | 'timestamp'>): void {
@@ -189,7 +195,7 @@ export function subscribeToNotifications(userId: number, onNotification: Notific
       } catch (err) {
         console.error('[WS] Failed to parse notification', err);
       }
-    });
+    }, getAuthSubscriptionHeaders());
     subscriptions.set(destination, sub);
   };
 
@@ -235,7 +241,7 @@ export function subscribeToUserPresence(onPresence: UserPresenceHandler): () => 
       } catch (err) {
         console.error('[WS] Failed to parse user presence', err);
       }
-    });
+    }, getAuthSubscriptionHeaders());
     subscriptions.set(destination, sub);
   };
 
@@ -298,7 +304,7 @@ export function subscribeToCall(ticketId: number, onSignal: CallSignalHandler): 
       } catch (err) {
         console.error('[WS] Failed to parse call signal', err);
       }
-    });
+    }, getAuthSubscriptionHeaders());
     subscriptions.set(destination, sub);
   };
 
@@ -344,7 +350,7 @@ export function subscribeToDm(conversationId: number, onMessage: DmMessageHandle
       } catch (err) {
         console.error('[WS] Failed to parse DM message', err);
       }
-    });
+    }, getAuthSubscriptionHeaders());
     subscriptions.set(destination, sub);
   };
 
@@ -403,7 +409,7 @@ export function subscribeToDmUpdates(conversationId: number, onUpdate: DmMessage
       } catch (err) {
         console.error('[WS] Failed to parse DM update', err);
       }
-    });
+    }, getAuthSubscriptionHeaders());
     subscriptions.set(destination, sub);
   };
 
@@ -450,7 +456,7 @@ export function subscribeToDmTyping(conversationId: number, onTyping: (p: DmTypi
       } catch (err) {
         console.error('[WS] Failed to parse DM typing', err);
       }
-    });
+    }, getAuthSubscriptionHeaders());
     subscriptions.set(destination, sub);
   };
 
@@ -515,7 +521,7 @@ export function subscribeToUserCalls(userId: number, onSignal: CallSignalHandler
       } catch (err) {
         console.error('[WS] Failed to parse user call signal', err);
       }
-    });
+    }, getAuthSubscriptionHeaders());
     subscriptions.set(destination, sub);
   };
 
@@ -570,7 +576,7 @@ export function subscribeToSupportRequests(onRequest: SupportRequestHandler): ()
       } catch (err) {
         console.error('[WS] Failed to parse support request', err);
       }
-    });
+    }, getAuthSubscriptionHeaders());
     subscriptions.set(destination, sub);
   };
 
@@ -610,7 +616,7 @@ export function subscribeToSupportTaken(onTaken: SupportRequestHandler): () => v
       } catch (err) {
         console.error('[WS] Failed to parse support taken', err);
       }
-    });
+    }, getAuthSubscriptionHeaders());
     subscriptions.set(destination, sub);
   };
 
@@ -650,7 +656,7 @@ export function subscribeToCustomerSupport(customerId: number, onUpdate: Support
       } catch (err) {
         console.error('[WS] Failed to parse customer support update', err);
       }
-    });
+    }, getAuthSubscriptionHeaders());
     subscriptions.set(destination, sub);
   };
 

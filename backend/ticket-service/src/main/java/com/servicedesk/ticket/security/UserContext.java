@@ -31,6 +31,27 @@ public class UserContext {
         return CURRENT_USER_ROLE.get();
     }
 
+    /**
+     * Executes the given action with the provided user context, ensuring cleanup
+     * even if an exception occurs. Use this method in filter chains to prevent
+     * stale context on failure.
+     *
+     * @param userId   the user ID
+     * @param username the username
+     * @param role     the user role
+     * @param action   the action to execute within the context
+     */
+    public static void runWithContext(Long userId, String username, UserRole role, Runnable action) {
+        setUserId(userId);
+        setUsername(username);
+        setUserRole(role);
+        try {
+            action.run();
+        } finally {
+            clear();
+        }
+    }
+
     public static void clear() {
         CURRENT_USER_ID.remove();
         CURRENT_USERNAME.remove();

@@ -1,8 +1,6 @@
 package com.servicedesk.ticket.dto;
 
-import com.servicedesk.ticket.enums.UserRole;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
@@ -18,9 +16,4 @@ public class UserRegisterRequest {
 
     private String email;
     private String phone;
-
-    @NotNull
-    private UserRole role;
-
-    private String agentType; // Only for AGENT role
 }

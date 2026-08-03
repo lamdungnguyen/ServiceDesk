@@ -23,8 +23,15 @@ public class AccessControlServiceImpl implements AccessControlService {
 
     @Override
     public void requireCanViewTicket(Ticket ticket) {
+        if (ticket == null) {
+            throw new UnauthorizedAccessException("Ticket not found");
+        }
         Long userId = UserContext.getUserId();
         UserRole role = UserContext.getUserRole();
+
+        if (userId == null || role == null) {
+            throw new UnauthorizedAccessException("Authentication required");
+        }
 
         if (role == UserRole.ADMIN) {
             return;
@@ -41,8 +48,15 @@ public class AccessControlServiceImpl implements AccessControlService {
 
     @Override
     public void requireCanUpdateTicket(Ticket ticket) {
+        if (ticket == null) {
+            throw new UnauthorizedAccessException("Ticket not found");
+        }
         Long userId = UserContext.getUserId();
         UserRole role = UserContext.getUserRole();
+
+        if (userId == null || role == null) {
+            throw new UnauthorizedAccessException("Authentication required");
+        }
 
         if (role == UserRole.ADMIN) {
             return;
@@ -61,6 +75,10 @@ public class AccessControlServiceImpl implements AccessControlService {
     public void requireCanAssignTicket(Long assigneeId) {
         Long userId = UserContext.getUserId();
         UserRole role = UserContext.getUserRole();
+
+        if (userId == null || role == null) {
+            throw new UnauthorizedAccessException("Authentication required");
+        }
 
         if (role == UserRole.ADMIN) {
             return;

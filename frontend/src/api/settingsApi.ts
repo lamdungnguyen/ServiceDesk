@@ -23,12 +23,20 @@ export interface SystemSettings {
   aiSuggestThreshold: number;
 }
 
+const getAuthToken = (): string | null => localStorage.getItem('authToken');
+
 export const getSettings = async (): Promise<SystemSettings> => {
-  const response = await apiClient.get('/settings');
+  const token = getAuthToken();
+  const response = await apiClient.get('/settings', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
   return response.data;
 };
 
 export const updateSettings = async (data: Partial<SystemSettings>): Promise<SystemSettings> => {
-  const response = await apiClient.put('/settings', data);
+  const token = getAuthToken();
+  const response = await apiClient.put('/settings', data, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
   return response.data;
 };

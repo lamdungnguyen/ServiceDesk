@@ -25,6 +25,19 @@ public class UserPresenceServiceImpl implements UserPresenceService {
 
     @Override
     public synchronized UserPresenceResponse markOnline(String sessionId, Long userId) {
+        if (sessionId == null || sessionId.trim().isEmpty()) {
+            throw new IllegalArgumentException("sessionId must not be null or empty");
+        }
+        if (userId == null) {
+            throw new IllegalArgumentException("userId must not be null");
+        }
+        if (!userRepository.existsById(userId)) {
+            throw new IllegalArgumentException("User not found with id: " + userId);
+        }
+        if (sessionUsers.containsKey(sessionId) && !sessionUsers.get(sessionId).equals(userId)) {
+            throw new IllegalStateException("Session already associated with another user");
+        }
+
         sessionUsers.put(sessionId, userId);
         userSessions.computeIfAbsent(userId, ignored -> new HashSet<>()).add(sessionId);
         return new UserPresenceResponse(userId, "ONLINE", lastSeenByUser.get(userId));
@@ -32,6 +45,10 @@ public class UserPresenceServiceImpl implements UserPresenceService {
 
     @Override
     public synchronized UserPresenceResponse markOffline(String sessionId) {
+        if (sessionId == null || sessionId.trim().isEmpty()) {
+            throw new IllegalArgumentException("sessionId must not be null or empty");
+        }
+
         Long userId = sessionUsers.remove(sessionId);
         if (userId == null) {
             return null;

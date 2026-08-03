@@ -8,8 +8,9 @@ const apiClient = axios.create({
 });
 
 // Attach JWT auth token from logged-in user
+// Note: Using sessionStorage instead of localStorage to reduce XSS impact
 apiClient.interceptors.request.use((config) => {
-  const savedUser = localStorage.getItem('auth_user');
+  const savedUser = sessionStorage.getItem('auth_user');
   if (savedUser) {
     const user = JSON.parse(savedUser);
     if (user.token) {
