@@ -1,0 +1,1 @@
+không được đọc các biến môi trường của hệ thống
